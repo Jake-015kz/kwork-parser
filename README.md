@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kwork Parser
 
-## Getting Started
+Парсер проектов с [Kwork.ru](https://kwork.ru). Собирает заказы по заданным категориям, прогоняет через нейросеть (OpenRouter, Nemotron 3 Ultra), присылает готовые отклики в Telegram. Всё в одном флаконе — дашборд, бот, анализ.
 
-First, run the development server:
+## Как работает
+
+1. Раз в 5 минут кроном собирает новые проекты с Kwork
+2. Каждый проект проверяет: не в чёрном списке ли заказчик, не спамер ли (много проектов — 0% найма), не слишком ли маленький бюджет
+3. Если всё ок — отправляет проект нейросети. Та решает: стоит брать или нет, и пишет отклик
+4. Отклик приходит в Telegram: три кнопки — «Взял», «Пропустил», «Отклик» (скопировать текст)
+5. В дашборде можно смотреть статистику, фильтровать, выгружать CSV
+
+## Технологии
+
+- **Frontend:** Next.js 16 (App Router), Tailwind-like CSS переменные
+- **База:** PostgreSQL (Neon), Drizzle ORM
+- **AI:** OpenRouter, модель nvidia/nemotron-3-ultra-550b-a55b
+- **Бот:** Grammy (Telegram Bot API)
+- **Деплой:** Vercel
+
+## Запуск локально
 
 ```bash
+git clone ...
+npm install
+cp .env.example .env.local
+# заполнить ключи
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Переменные окружения:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Переменная | Зачем |
+|---|---|
+| `DATABASE_URL` | Строка подключения к PostgreSQL |
+| `OPENROUTER_API_KEY` | Ключ OpenRouter |
+| `TELEGRAM_BOT_TOKEN` | Токен бота в Telegram |
+| `SITE_URL` | `http://localhost:3000` для разработки |
+| `CRON_SECRET` | Секрет для вызова /api/cron извне (опционально) |
+| `AI_MODEL` | Модель (по умолчанию nemotron) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Команды бота
 
-## Learn More
+- `/start` — привязать чат, получать уведомления
+- `/stats` — статистика по базе
 
-To learn more about Next.js, take a look at the following resources:
+## Категории парсинга
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+37 — Создание сайтов, 38 — Доработка, 39 — Мобильные приложения, 73 — Тексты, 79 — Вёрстка, 41 — Скрипты и боты.
