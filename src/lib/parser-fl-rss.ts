@@ -136,18 +136,30 @@ function parseRssItems(xml: string): ParsedProject[] {
 }
 
 export async function fetchFlRssProjects(): Promise<ParsedProject[]> {
-  const res = await fetch(RSS_URL, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; RSS Reader)",
-      Accept: "application/rss+xml, application/xml, text/xml",
-    },
-    next: { revalidate: 300 },
-  });
+  let xml: string;
 
-  if (!res.ok) {
-    throw new Error(`FL.ru RSS fetch failed: ${res.status}`);
+  try {
+    const res = await fetch(RSS_URL, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; RSS Reader)",
+        Accept: "application/rss+xml, application/xml, text/xml",
+      },
+      next: { revalidate: 300 },
+    });
+
+    if (res.ok) {
+      xml = await res.text();
+    } else {
+      throw new Error(`Direct fetch failed: ${res.status}`);
+    }
+  } catch {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(RSS_URL)}`;
+    const res = await fetch(proxyUrl, { next: { revalidate: 300 } });
+    if (!res.ok) {
+      throw new Error(`FL.ru RSS proxy fetch failed: ${res.status}`);
+    }
+    xml = await res.text();
   }
 
-  const xml = await res.text();
   return parseRssItems(xml);
 }
