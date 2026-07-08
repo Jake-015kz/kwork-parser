@@ -21,43 +21,47 @@ export async function POST() {
     for (const p of parsed) {
       if (existingSet.has(p.platformId)) continue;
 
-      const [inserted] = await db
-        .insert(projects)
-        .values({
-          platformId: p.platformId,
-          platform: p.platform,
-          kworkId: 0,
-          categoryId: p.categoryId,
-          name: p.name,
-          description: p.description,
-          priceLimit: p.budget,
-          maxDays: null,
-          userName: null,
-          userRating: null,
-          userHiredPercent: null,
-          userWantsCount: null,
-          userBadges: [],
-          url: p.url,
-          viewsCount: null,
-          dateCreate: p.dateCreate ? new Date(p.dateCreate) : null,
-          status: "new",
-        })
-        .returning();
-
-      newCount++;
-
       try {
-        await analyzeOneProject(inserted);
-        analyzedCount++;
-      } catch (err) {
-        errors.push(`Analysis error for ${p.platformId}: ${err}`);
-        await db
-          .update(projects)
-          .set({ status: "error", updatedAt: new Date() })
-          .where(eq(projects.id, inserted.id));
-      }
+        const [inserted] = await db
+          .insert(projects)
+          .values({
+            platformId: p.platformId,
+            platform: p.platform,
+            kworkId: 0,
+            categoryId: p.categoryId,
+            name: p.name,
+            description: p.description,
+            priceLimit: p.budget,
+            maxDays: null,
+            userName: null,
+            userRating: null,
+            userHiredPercent: null,
+            userWantsCount: null,
+            userBadges: [],
+            url: p.url,
+            viewsCount: null,
+            dateCreate: p.dateCreate ? new Date(p.dateCreate) : null,
+            status: "new",
+          })
+          .returning();
 
-      await new Promise((r) => setTimeout(r, 2000));
+        newCount++;
+
+        try {
+          await analyzeOneProject(inserted);
+          analyzedCount++;
+        } catch (err) {
+          errors.push(`Analysis error for ${p.platformId}: ${err}`);
+          await db
+            .update(projects)
+            .set({ status: "error", updatedAt: new Date() })
+            .where(eq(projects.id, inserted.id));
+        }
+
+        await new Promise((r) => setTimeout(r, 2000));
+      } catch {
+        existingSet.add(p.platformId);
+      }
     }
 
     return NextResponse.json({
