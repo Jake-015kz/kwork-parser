@@ -1,111 +1,113 @@
 import { Bot, webhookCallback } from "grammy";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "./db";
 import { settings, projects, analyses } from "@/db/schema";
 
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
-const SITE_URL = process.env.SITE_URL!;
+const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const SITE_URL = process.env.SITE_URL || "http://localhost:3000";
 
-export const bot = new Bot(TOKEN);
+export const bot = TOKEN ? new Bot(TOKEN) : null;
 
-bot.command("start", async (ctx) => {
-  const chatId = ctx.chat?.id;
-  if (chatId) {
-    try {
-      const existing = await db.select().from(settings)
-        .where(eq(settings.key, "telegram_chat_id"));
-      if (existing.length) {
-        await db.update(settings)
-          .set({ value: chatId } as any)
+if (bot) {
+  bot.command("start", async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (chatId) {
+      try {
+        const existing = await db.select().from(settings)
           .where(eq(settings.key, "telegram_chat_id"));
-      } else {
-        await db.insert(settings).values({
-          key: "telegram_chat_id",
-          value: chatId as any,
-        });
+        if (existing.length) {
+          await db.update(settings)
+            .set({ value: chatId } as { value: unknown })
+            .where(eq(settings.key, "telegram_chat_id"));
+        } else {
+          await db.insert(settings).values({
+            key: "telegram_chat_id",
+            value: chatId,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to save chat ID:", e);
       }
-    } catch (e) {
-      console.error("Failed to save chat ID:", e);
     }
-  }
 
-  await ctx.reply(
-    "👋 Привет! Я бот для мониторинга проектов на Kwork.\n\n"
-    + "Я буду присылать тебе новые проекты по твоей специализации.\n\n"
-    + "После анализа у каждого проекта будут кнопки:\n"
-    + "✅ Взял — отмечаю что ты взял заказ\n"
-    + "⏭ Пропустил — проект неинтересен\n"
-    + "📤 Отклик — показываю текст готового отклика\n\n"
-    + "Открыть дашборд: " + SITE_URL,
-    { link_preview_options: { is_disabled: true } }
-  );
-});
-
-bot.command("stats", async (ctx) => {
-  try {
-    const { count } = await import("drizzle-orm");
-    const [total] = await db.select({ value: count() }).from(projects);
     await ctx.reply(
-      `📊 Статистика:\n`
-      + `Всего проектов в БД: ${total.value}\n`
-      + `Дашборд: ${SITE_URL}`
+      "👋 Привет! Я бот для мониторинга проектов на Kwork.\n\n"
+      + "Я буду присылать тебе новые проекты по твоей специализации.\n\n"
+      + "После анализа у каждого проекта будут кнопки:\n"
+      + "✅ Взял — отмечаю что ты взял заказ\n"
+      + "⏭ Пропустил — проект неинтересен\n"
+      + "📤 Отклик — показываю текст готового отклика\n\n"
+      + "Открыть дашборд: " + SITE_URL,
+      { link_preview_options: { is_disabled: true } }
     );
-  } catch {
-    await ctx.reply("⚠️ База данных временно недоступна");
-  }
-});
+  });
 
-bot.callbackQuery(/take_(\d+)/, async (ctx) => {
-  const projectId = parseInt(ctx.match[1]);
-  await db.update(projects)
-    .set({ status: "in_progress", updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
-  await ctx.answerCallbackQuery({ text: "✅ Отмечено как «Взял в работу»" });
-  try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch {}
-});
+  bot.command("stats", async (ctx) => {
+    try {
+      const { count } = await import("drizzle-orm");
+      const [total] = await db.select({ value: count() }).from(projects);
+      await ctx.reply(
+        `📊 Статистика:\n`
+        + `Всего проектов в БД: ${total.value}\n`
+        + `Дашборд: ${SITE_URL}`
+      );
+    } catch {
+      await ctx.reply("⚠️ База данных временно недоступна");
+    }
+  });
 
-bot.callbackQuery(/skip_(\d+)/, async (ctx) => {
-  const projectId = parseInt(ctx.match[1]);
-  await db.update(projects)
-    .set({ status: "skipped", skipReason: "Пропущено в Telegram", updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
-  await ctx.answerCallbackQuery({ text: "⏭ Проект пропущен" });
-  try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch {}
-});
+  bot.callbackQuery(/take_(\d+)/, async (ctx) => {
+    const projectId = parseInt(ctx.match[1]);
+    await db.update(projects)
+      .set({ status: "in_progress", updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+    await ctx.answerCallbackQuery({ text: "✅ Отмечено как «Взял в работу»" });
+    try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch {}
+  });
 
-bot.callbackQuery(/response_(\d+)/, async (ctx) => {
-  const projectId = parseInt(ctx.match[1]);
-  const [row] = await db
-    .select({
-      responseText: analyses.responseText,
-      kworkId: projects.kworkId,
-      name: projects.name,
-    })
-    .from(analyses)
-    .innerJoin(projects, eq(analyses.projectId, projects.id))
-    .where(eq(analyses.projectId, projectId))
-    .orderBy(desc(analyses.createdAt))
-    .limit(1);
+  bot.callbackQuery(/skip_(\d+)/, async (ctx) => {
+    const projectId = parseInt(ctx.match[1]);
+    await db.update(projects)
+      .set({ status: "skipped", skipReason: "Пропущено в Telegram", updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+    await ctx.answerCallbackQuery({ text: "⏭ Проект пропущен" });
+    try { await ctx.editMessageReplyMarkup({ reply_markup: undefined }); } catch {}
+  });
 
-  if (row?.responseText) {
-    await ctx.answerCallbackQuery({ text: "📤 Отклик готов" });
-    const kworkUrl = `https://kwork.ru/projects/${row.kworkId}/view`;
-    await ctx.reply(
-      `<b>📤 Отклик для "${row.name}"</b>\n\n<code>${row.responseText}</code>`,
-      {
-        parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "✍️ Откликнуться на Kwork", url: kworkUrl }],
-          ],
-        },
-        link_preview_options: { is_disabled: true },
-      }
-    );
-  } else {
-    await ctx.answerCallbackQuery({ text: "❌ Отклик не найден" });
-  }
-});
+  bot.callbackQuery(/response_(\d+)/, async (ctx) => {
+    const projectId = parseInt(ctx.match[1]);
+    const [row] = await db
+      .select({
+        responseText: analyses.responseText,
+        kworkId: projects.kworkId,
+        name: projects.name,
+      })
+      .from(analyses)
+      .innerJoin(projects, eq(analyses.projectId, projects.id))
+      .where(eq(analyses.projectId, projectId))
+      .orderBy(desc(analyses.createdAt))
+      .limit(1);
+
+    if (row?.responseText) {
+      await ctx.answerCallbackQuery({ text: "📤 Отклик готов" });
+      const kworkUrl = `https://kwork.ru/projects/${row.kworkId}/view`;
+      await ctx.reply(
+        `<b>📤 Отклик для "${row.name}"</b>\n\n<code>${row.responseText}</code>`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "✍️ Откликнуться на Kwork", url: kworkUrl }],
+            ],
+          },
+          link_preview_options: { is_disabled: true },
+        }
+      );
+    } else {
+      await ctx.answerCallbackQuery({ text: "❌ Отклик не найден" });
+    }
+  });
+}
 
 export async function sendProjectNotification(
   projectId: number,
@@ -139,24 +141,30 @@ export async function sendProjectNotification(
     + `${costStr}${timelineStr}\n\n`
     + `🔗 ${kworkUrl}`;
 
-  await bot.api.raw.sendMessage({
-    chat_id: chatId,
-    text,
-    link_preview_options: { is_disabled: true },
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "👁 На Kwork", url: kworkUrl },
-          { text: "📊 Детали", url: `${SITE_URL}/projects/${projectId}` },
+  try {
+    if (!bot) {
+      console.warn("Telegram bot not initialized (no TELEGRAM_BOT_TOKEN)");
+      return;
+    }
+    await bot.api.sendMessage(chatId, text, {
+      link_preview_options: { is_disabled: true },
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "👁 На Kwork", url: kworkUrl },
+            { text: "📊 Детали", url: `${SITE_URL}/projects/${projectId}` },
+          ],
+          [
+            { text: "✅ Взял", callback_data: `take_${projectId}` },
+            { text: "⏭ Пропустил", callback_data: `skip_${projectId}` },
+            { text: "📤 Отклик", callback_data: `response_${projectId}` },
+          ],
         ],
-        [
-          { text: "✅ Взял", callback_data: `take_${projectId}` },
-          { text: "⏭ Пропустил", callback_data: `skip_${projectId}` },
-          { text: "📤 Отклик", callback_data: `response_${projectId}` },
-        ],
-      ],
-    },
-  });
+      },
+    });
+  } catch (e) {
+    console.error(`Failed to send TG notification for project ${projectId}:`, e);
+  }
 }
 
-export const handleTelegramWebhook = webhookCallback(bot, "std/http");
+export const handleTelegramWebhook = bot ? webhookCallback(bot, "std/http") : null;

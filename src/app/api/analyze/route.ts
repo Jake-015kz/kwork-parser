@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       score: result.score,
       reasoning: result.reasoning,
       responseText: result.response?.body || null,
-      modelUsed: process.env.AI_MODEL || "gemini-2.5-flash",
+      modelUsed: process.env.AI_MODEL || "deepseek/deepseek-chat-v3-0324:free",
     });
 
     await db

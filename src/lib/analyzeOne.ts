@@ -2,10 +2,13 @@ import { db } from "./db";
 import { projects, analyses, blacklist, settings } from "@/db/schema";
 import { analyzeProject, checkClientSpammer, type AnalysisResult } from "./ai";
 import { sendProjectNotification } from "./telegram";
+import { EXCLUDED_KEYWORDS, EXCLUDED_CATEGORY_IDS } from "./prompt";
 import { eq } from "drizzle-orm";
 
 export interface ProjectRow {
   id: number;
+  platformId: string;
+  platform: string;
   kworkId: number;
   categoryId: number;
   name: string;
@@ -24,6 +27,14 @@ async function getMinBudget(): Promise<number | null> {
   if (!s) return null;
   const v = s.value as unknown as string;
   return v ? parseFloat(v) || null : null;
+}
+
+function checkExcludedKeywords(name: string, description: string): string | null {
+  const text = `${name} ${description}`.toLowerCase();
+  for (const kw of EXCLUDED_KEYWORDS) {
+    if (text.includes(kw)) return kw;
+  }
+  return null;
 }
 
 export async function analyzeOneProject(
@@ -51,6 +62,21 @@ export async function analyzeOneProject(
         .where(eq(projects.id, project.id));
       throw new Error(`Project budget ${price} ₽ is below minimum ${minBudget} ₽`);
     }
+  }
+
+  if (EXCLUDED_CATEGORY_IDS.has(project.categoryId)) {
+    await db.update(projects)
+      .set({ status: "skipped", skipReason: `Категория не подходит (ID: ${project.categoryId})`, updatedAt: new Date() })
+      .where(eq(projects.id, project.id));
+    throw new Error(`Category ${project.categoryId} is excluded`);
+  }
+
+  const excludedKw = checkExcludedKeywords(project.name, project.description);
+  if (excludedKw) {
+    await db.update(projects)
+      .set({ status: "skipped", skipReason: `Ключевое слово: "${excludedKw}"`, updatedAt: new Date() })
+      .where(eq(projects.id, project.id));
+    throw new Error(`Excluded keyword: "${excludedKw}"`);
   }
 
   if (checkClientSpammer(project.userWantsCount, project.userHiredPercent)) {
@@ -98,7 +124,7 @@ export async function analyzeOneProject(
     responseText: result.response?.body || null,
     responseCost: result.response?.cost || null,
     responseTimeline: result.response?.timeline || null,
-    modelUsed: process.env.AI_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
+    modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
   });
 
   const newStatus = result.verdict === "not_worth" ? "skipped" : "analyzed";

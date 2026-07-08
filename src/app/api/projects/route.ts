@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   const search = searchParams.get("search");
   const verdict = searchParams.get("verdict");
+  const platform = searchParams.get("platform");
   const minBudget = searchParams.get("minBudget");
   const maxBudget = searchParams.get("maxBudget");
   const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
@@ -17,22 +18,25 @@ export async function GET(req: NextRequest) {
   if (status && status !== "all") {
     conditions.push(eq(projects.status, status));
   }
+  if (platform && platform !== "all") {
+    conditions.push(eq(projects.platform, platform));
+  }
   if (search) {
     conditions.push(
       or(
         ilike(projects.name, `%${search}%`),
         ilike(projects.description, `%${search}%`)
-      )! as any
+      )! as ReturnType<typeof eq>
     );
   }
   if (verdict && verdict !== "all") {
     conditions.push(eq(analyses.verdict, verdict));
   }
   if (minBudget) {
-    conditions.push(gte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(minBudget)) as any);
+    conditions.push(gte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(minBudget)) as ReturnType<typeof eq>);
   }
   if (maxBudget) {
-    conditions.push(lte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(maxBudget)) as any);
+    conditions.push(lte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(maxBudget)) as ReturnType<typeof eq>);
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -42,6 +46,7 @@ export async function GET(req: NextRequest) {
       .select({
         id: projects.id,
         kworkId: projects.kworkId,
+        platform: projects.platform,
         categoryId: projects.categoryId,
         name: projects.name,
         priceLimit: projects.priceLimit,
@@ -50,6 +55,7 @@ export async function GET(req: NextRequest) {
         userName: projects.userName,
         timeLeft: projects.timeLeft,
         skipReason: projects.skipReason,
+        url: projects.url,
         createdAt: projects.createdAt,
         analysis: {
           verdict: analyses.verdict,

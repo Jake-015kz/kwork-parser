@@ -1,5 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata: Metadata = {
   title: "Kwork Parser — Dashboard",
@@ -14,31 +21,15 @@ export default function RootLayout({
   return (
     <html lang="ru" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <nav className="border-b border-[var(--border)] px-6 py-3">
-          <div className="max-w-7xl mx-auto flex items-center gap-6">
-            <a href="/" className="text-lg font-bold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors">
+        <nav className="border-b border-[var(--border)] px-4 py-3 md:px-6">
+          <div className="max-w-7xl mx-auto flex items-center gap-4 md:gap-6">
+            <Link href="/" className="text-lg font-bold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors">
               Kwork Parser
-            </a>
-            <div className="flex gap-4 text-sm">
-              <a href="/" className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                Главная
-              </a>
-              <a href="/projects" className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                Проекты
-              </a>
-              <a href="/projects/rejected" className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                Отклонённые
-              </a>
-              <a href="/responses" className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                Отклики
-              </a>
-              <a href="/settings" className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                Настройки
-              </a>
-            </div>
+            </Link>
+            <span className="text-xs text-[var(--muted)] hidden sm:inline">DeepSeek V3</span>
           </div>
         </nav>
-        <main className="flex-1 px-6 py-6">
+        <main className="flex-1 px-4 py-4 md:px-6 md:py-6">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </body>

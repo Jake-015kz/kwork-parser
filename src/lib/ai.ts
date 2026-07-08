@@ -1,7 +1,11 @@
 import { SYSTEM_PROMPT_BASE, getCategoryName, getCategoryStyle } from "./prompt";
 
-const API_KEY = process.env.OPENROUTER_API_KEY!;
-const MODEL = process.env.AI_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
+const API_KEY = process.env.GROQ_API_KEY;
+const MODEL = process.env.AI_MODEL || "qwen/qwen3-32b";
+const BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 3000;
 
 export interface AnalysisResult {
   verdict: "worth" | "not_worth" | "maybe";
@@ -54,6 +58,10 @@ export async function analyzeProject(
   userWantsCount: number | null,
   categoryId?: number,
 ): Promise<AnalysisResult> {
+  if (!API_KEY) {
+    throw new Error("GROQ_API_KEY is not set");
+  }
+
   const catName = categoryId ? getCategoryName(categoryId) : "Разработка";
   const catStyle = categoryId ? getCategoryStyle(categoryId) : "";
 
@@ -81,32 +89,58 @@ ${catStyle ? `${catStyle}` : ""}`;
       { role: "user", content: userPrompt },
     ],
     temperature: 0.8,
-    max_tokens: 8192,
+    max_tokens: 4096,
+    response_format: { type: "json_object" },
   });
 
-  const res = await fetch(`https://openrouter.ai/api/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-      "HTTP-Referer": "https://parserkwork.vercel.app",
-      "X-Title": "Kwork Parser",
-    },
-    body,
-  });
+  let lastError: string = "";
 
-  const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content;
-  if (!raw) {
-    throw new Error(`AI error: ${data.error?.message || JSON.stringify(data)}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
+    }
+
+    try {
+      const res = await fetch(BASE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        lastError = `HTTP ${res.status}: ${data.error?.message || JSON.stringify(data)}`;
+        if (res.status === 429) {
+          const retryAfter = res.headers.get("retry-after");
+          const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 10000) : RETRY_DELAY_MS;
+          await new Promise((r) => setTimeout(r, waitMs));
+        }
+        continue;
+      }
+
+      const raw = data.choices?.[0]?.message?.content;
+      if (!raw) {
+        lastError = `AI error: no content in response: ${JSON.stringify(data).slice(0, 500)}`;
+        continue;
+      }
+
+      const result = tryParseJSON(raw);
+      if (!result) {
+        lastError = `AI returned invalid JSON: ${raw.slice(0, 500)}`;
+        continue;
+      }
+
+      return result;
+    } catch (e) {
+      lastError = String(e);
+    }
   }
 
-  const result = tryParseJSON(raw);
-  if (!result) {
-    throw new Error(`AI returned invalid JSON: ${raw.slice(0, 1000)}`);
-  }
-
-  return result;
+  throw new Error(`AI failed after ${MAX_RETRIES + 1} attempts: ${lastError}`);
 }
 
 export function checkClientSpammer(

@@ -4,7 +4,9 @@ import {
 
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
-  kworkId: integer("kwork_id").notNull().unique(),
+  platform: varchar("platform", { length: 20 }).notNull().default("kwork"),
+  platformId: varchar("platform_id", { length: 100 }).notNull(),
+  kworkId: integer("kwork_id").notNull().default(0),
   categoryId: integer("category_id").notNull(),
   name: varchar("name", { length: 500 }).notNull(),
   description: text("description").notNull().default(""),
@@ -26,7 +28,7 @@ export const projects = pgTable("projects", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
-  kworkIdx: uniqueIndex("kwork_idx").on(table.kworkId),
+  platformIdIdx: uniqueIndex("platform_id_idx").on(table.platformId),
 }));
 
 export const analyses = pgTable("analyses", {
@@ -48,8 +50,14 @@ export const responses = pgTable("responses", {
   id: serial("id").primaryKey(),
   projectId: serial("project_id").references(() => projects.id).notNull(),
   content: text("content").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("queued"),
+  kworkOfferId: varchar("kwork_offer_id", { length: 100 }),
   sent: boolean("sent").notNull().default(false),
   sentAt: timestamp("sent_at"),
+  viewedAt: timestamp("viewed_at"),
+  respondedAt: timestamp("responded_at"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectReason: text("reject_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
