@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
         id: projects.id,
         kworkId: projects.kworkId,
         platform: projects.platform,
+        platformId: projects.platformId,
         categoryId: projects.categoryId,
         name: projects.name,
         priceLimit: projects.priceLimit,

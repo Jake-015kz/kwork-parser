@@ -149,7 +149,7 @@ export default function ProjectsTab() {
     } catch {}
   };
 
-  const handleSubmitToKwork = async (projectId: number, kworkId: number) => {
+  const handleSubmitToKwork = async (projectId: number, kworkId: number, platform?: string, url?: string | null) => {
     const res = await fetch(`/api/responses?projectId=${projectId}`);
     if (!res.ok) return;
     const data = await res.json();
@@ -157,7 +157,11 @@ export default function ProjectsTab() {
       await navigator.clipboard.writeText(data.responseText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      window.open(`https://kwork.ru/projects/${kworkId}/view`, "_blank");
+      if (platform === "fl" && url) {
+        window.open(url, "_blank");
+      } else {
+        window.open(`https://kwork.ru/projects/${kworkId}/view`, "_blank");
+      }
     }
   };
 
@@ -236,7 +240,7 @@ export default function ProjectsTab() {
           <div className="flex flex-wrap gap-2">
             {latestAnalysis?.responseText && (
               <button
-                onClick={() => handleSubmitToKwork(detail.id, detail.kworkId)}
+                onClick={() => handleSubmitToKwork(detail.id, detail.kworkId, detail.platform, detail.url)}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm inline-flex items-center"
               >
                 {copied ? "✅ Скопировано" : "📤 Отправить отклик"}
@@ -456,7 +460,7 @@ export default function ProjectsTab() {
               <div className="flex gap-2 mt-2">
                 {p.analysis?.verdict === "worth" && p.analysis?.responseCost && (
                   <button
-                    onClick={() => handleSubmitToKwork(p.id, p.kworkId)}
+                    onClick={() => handleSubmitToKwork(p.id, p.kworkId, p.platform, p.url)}
                     className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
                   >
                     {copied ? "✅ Скопировано" : "📤 Отправить"}
