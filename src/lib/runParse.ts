@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { projects, syncLogs } from "@/db/schema";
 import { fetchAllCategoriesProjects, type KworkProject } from "./parser";
-import { fetchFlProjects, mapFlCategoryToKwork, type FlProject } from "./parser-fl";
+import { fetchFlRssProjects } from "./parser-fl-rss";
 import { analyzeOneProject } from "./analyzeOne";
 import { eq, asc, inArray } from "drizzle-orm";
 import type { ParsedProject } from "./project-types";
@@ -38,26 +38,6 @@ function kworkToParsed(kp: KworkProject): ParsedProject {
     url: `https://kwork.ru/projects/${kp.id}/view`,
     viewsCount: kp.views_dirty ? parseInt(kp.views_dirty) : null,
     dateCreate: kp.date_create || null,
-  };
-}
-
-function flToParsed(fp: FlProject): ParsedProject {
-  return {
-    platformId: `fl_${fp.id}`,
-    platform: "fl",
-    categoryId: mapFlCategoryToKwork(fp.category),
-    name: fp.title,
-    description: fp.description || "",
-    budget: fp.budget || null,
-    maxDays: null,
-    userName: null,
-    userRating: null,
-    userHiredPercent: null,
-    userWantsCount: null,
-    userBadges: [],
-    url: fp.url,
-    viewsCount: null,
-    dateCreate: fp.dateCreate || null,
   };
 }
 
@@ -129,18 +109,18 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     errors.push(`Kwork fetch error: ${err}`);
   }
 
-  // Fetch from FL.ru
-  let flProjects: FlProject[] = [];
+  // Fetch from FL.ru via RSS
+  let flProjects: ParsedProject[] = [];
   try {
-    flProjects = await fetchFlProjects(Math.min(maxPages, 5));
+    flProjects = await fetchFlRssProjects();
   } catch (err) {
-    errors.push(`FL.ru fetch error: ${err}`);
+    errors.push(`FL.ru RSS fetch error: ${err}`);
   }
 
   // Convert and combine
   const allParsed: ParsedProject[] = [
     ...kworkProjects.map(kworkToParsed),
-    ...flProjects.map(flToParsed),
+    ...flProjects,
   ];
 
   const result = await insertAndAnalyze(allParsed, errors);
