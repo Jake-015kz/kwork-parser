@@ -20,12 +20,13 @@ type TabKey = (typeof TABS)[number]["key"];
 export default function Home() {
   const [tab, setTab] = useState<TabKey>("dashboard");
   const [parsing, setParsing] = useState(false);
+  const [parseCount, setParseCount] = useState(0);
 
   const handleParse = async () => {
     setParsing(true);
     await fetch("/api/parse", { method: "POST" });
     setParsing(false);
-    window.location.reload();
+    setParseCount((c) => c + 1);
   };
 
   return (
@@ -59,7 +60,7 @@ export default function Home() {
       </div>
 
       {tab === "dashboard" && <DashboardTab />}
-      {tab === "projects" && <ProjectsTab />}
+      {tab === "projects" && <ProjectsTab key={parseCount} />}
       {tab === "responses" && <ResponsesTab />}
       {tab === "settings" && <SettingsTab />}
     </div>

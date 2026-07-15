@@ -11,6 +11,15 @@ interface BlacklistItem {
   createdAt: string;
 }
 
+const PARSE_CATEGORIES = [
+  { id: 37, name: "Создание сайта (сайты под ключ)" },
+  { id: 38, name: "Доработка и настройка сайта" },
+  { id: 39, name: "Мобильные приложения (iOS, Android)" },
+  { id: 73, name: "Тексты и наполнение сайта" },
+  { id: 79, name: "Верстка" },
+  { id: 41, name: "Скрипты, боты и mini apps" },
+] as const;
+
 export default function SettingsTab() {
   const [chatId, setChatId] = useState("");
   const [minBudget, setMinBudget] = useState("");
@@ -183,24 +192,11 @@ export default function SettingsTab() {
       <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <h2 className="text-lg font-semibold mb-3">Категории для парсинга</h2>
         <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2 text-[var(--muted)]">
-            <span className="text-[var(--accent)]">✓</span> 37 — Создание сайта (сайты под ключ)
-          </div>
-          <div className="flex items-center gap-2 text-[var(--muted)]">
-            <span className="text-[var(--accent)]">✓</span> 38 — Доработка и настройка сайта
-          </div>
-          <div className="flex items-center gap-2 text-[var(--muted)]">
-            <span className="text-[var(--accent)]">✓</span> 39 — Мобильные приложения (iOS, Android)
-          </div>
-          <div className="flex items-center gap-2 text-[var(--muted)]">
-            <span className="text-[var(--accent)]">✓</span> 73 — Тексты и наполнение сайта
-          </div>
-          <div className="flex items-center gap-2 text-[var(--muted)]">
-            <span className="text-[var(--accent)]">✓</span> 79 — Верстка
-          </div>
-          <div className="flex items-center gap-2 text-[var(--muted)]">
-            <span className="text-[var(--accent)]">✓</span> 41 — Скрипты, боты и mini apps
-          </div>
+          {PARSE_CATEGORIES.map((cat) => (
+            <div key={cat.id} className="flex items-center gap-2 text-[var(--muted)]">
+              <span className="text-[var(--accent)]">✓</span> {cat.id} — {cat.name}
+            </div>
+          ))}
         </div>
       </div>
 
