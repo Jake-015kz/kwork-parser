@@ -34,6 +34,8 @@ export async function GET(req: Request) {
       responseTimeline: analysis.responseTimeline,
       verdict: analysis.verdict,
       score: analysis.score,
+      url: project.url,
+      platform: project.platform,
     });
   }
 
@@ -54,6 +56,8 @@ export async function GET(req: Request) {
       createdAt: responses.createdAt,
       projectName: projects.name,
       kworkId: projects.kworkId,
+      url: projects.url,
+      platform: projects.platform,
     })
     .from(responses)
     .innerJoin(projects, eq(responses.projectId, projects.id))

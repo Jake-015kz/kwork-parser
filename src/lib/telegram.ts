@@ -2,6 +2,7 @@ import { Bot, webhookCallback } from "grammy";
 import { eq, desc } from "drizzle-orm";
 import { db } from "./db";
 import { settings, projects, analyses } from "@/db/schema";
+import { buildProjectUrl } from "./utils";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SITE_URL = process.env.SITE_URL || "http://localhost:3000";
@@ -107,6 +108,8 @@ if (bot) {
         responseText: analyses.responseText,
         kworkId: projects.kworkId,
         name: projects.name,
+        url: projects.url,
+        platform: projects.platform,
       })
       .from(analyses)
       .innerJoin(projects, eq(analyses.projectId, projects.id))
@@ -116,14 +119,15 @@ if (bot) {
 
     if (row?.responseText) {
       await ctx.answerCallbackQuery({ text: "📤 Отклик готов" });
-      const kworkUrl = `https://kwork.ru/projects/${row.kworkId}/view`;
+      const projectUrl = buildProjectUrl(row.url, row.platform, row.kworkId);
+      const platformLabel = row.platform === "fl" ? "FL.ru" : "Kwork";
       await ctx.reply(
         `<b>📤 Отклик для "${row.name}"</b>\n\n<code>${row.responseText}</code>`,
         {
           parse_mode: "HTML",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "✍️ Откликнуться на Kwork", url: kworkUrl }],
+              [{ text: `✍️ Откликнуться на ${platformLabel}`, url: projectUrl }],
             ],
           },
           link_preview_options: { is_disabled: true },
@@ -145,7 +149,9 @@ export async function sendProjectNotification(
   score: number,
   chatId?: number,
   responseCost?: string | null,
-  responseTimeline?: string | null
+  responseTimeline?: string | null,
+  platform?: string,
+  url?: string | null,
 ) {
   if (!chatId) {
     const chatSetting = await db.select().from(settings)
@@ -159,13 +165,14 @@ export async function sendProjectNotification(
   const daysStr = maxDays ? `${maxDays} дней` : "срок не указан";
   const costStr = responseCost ? `\n💰 Отклик: ${responseCost}` : "";
   const timelineStr = responseTimeline ? ` | ⏱ ${responseTimeline}` : "";
-  const kworkUrl = `https://kwork.ru/projects/${kworkId}/view`;
+  const projectUrl = buildProjectUrl(url, platform || "kwork", kworkId);
+  const platformLabel = platform === "fl" ? "FL.ru" : "Kwork";
 
   const text = `🆕 Новый проект: "${name}"\n`
     + `💰 ${priceStr} | ⏱ ${daysStr}\n`
     + `${emoji} Анализ: ${verdict === "worth" ? "Стоит брать" : verdict === "maybe" ? "Возможно" : "Не стоит"} (${score}/10)`
     + `${costStr}${timelineStr}\n\n`
-    + `🔗 ${kworkUrl}`;
+    + `🔗 ${projectUrl}`;
 
   try {
     if (!bot) {
@@ -177,7 +184,7 @@ export async function sendProjectNotification(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "👁 На Kwork", url: kworkUrl },
+            { text: `👁 На ${platformLabel}`, url: projectUrl },
             { text: "📊 Детали", url: `${SITE_URL}/projects/${projectId}` },
           ],
           [

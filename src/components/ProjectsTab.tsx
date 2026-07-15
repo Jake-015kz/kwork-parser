@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { buildProjectUrl } from "@/lib/utils";
 
 interface Project {
   id: number;
@@ -163,7 +164,7 @@ export default function ProjectsTab() {
       if (platform === "fl" && url) {
         window.open(url, "_blank");
       } else {
-        window.open(`https://kwork.ru/projects/${kworkId}/view`, "_blank");
+        window.open(buildProjectUrl(url, platform || "kwork", kworkId), "_blank");
       }
     }
   };
@@ -266,7 +267,7 @@ export default function ProjectsTab() {
               </button>
             )}
             <a
-              href={detail.url || `https://kwork.ru/projects/${detail.kworkId}/view`}
+              href={buildProjectUrl(detail.url, detail.platform, detail.kworkId)}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-[var(--card)] border border-[var(--border)] text-[var(--muted)] rounded-lg hover:text-[var(--foreground)] transition-colors text-sm inline-flex items-center"
@@ -442,7 +443,7 @@ export default function ProjectsTab() {
                       {p.name}
                     </button>
                     <a
-                      href={p.url || `https://kwork.ru/projects/${p.kworkId}/view`}
+                      href={buildProjectUrl(p.url, p.platform, p.kworkId)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 text-[var(--muted)] hover:text-green-400 transition-colors text-xs"

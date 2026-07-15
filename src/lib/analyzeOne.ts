@@ -19,6 +19,7 @@ export interface ProjectRow {
   userBadges: unknown;
   userHiredPercent: number | null;
   userWantsCount: number | null;
+  url: string | null;
 }
 
 async function getMinBudget(): Promise<number | null> {
@@ -149,6 +150,8 @@ export async function analyzeOneProject(
       undefined,
       result.response.cost,
       result.response.timeline,
+      project.platform,
+      project.url,
     );
   }
 

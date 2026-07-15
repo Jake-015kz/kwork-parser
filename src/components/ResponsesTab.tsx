@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { buildProjectUrl } from "@/lib/utils";
 
 interface ResponseItem {
   id: number;
@@ -17,6 +18,8 @@ interface ResponseItem {
   createdAt: string;
   projectName: string;
   kworkId: number;
+  url: string | null;
+  platform: string;
 }
 
 const STATUS_FILTERS = [
@@ -49,6 +52,7 @@ export default function ResponsesTab() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [copied, setCopied] = useState(false);
+  const prevFilterRef = useRef(filter);
 
   const fetchResponses = async () => {
     setLoading(true);
@@ -60,7 +64,10 @@ export default function ResponsesTab() {
   };
 
   useEffect(() => {
-    fetchResponses();
+    if (prevFilterRef.current !== filter) {
+      prevFilterRef.current = filter;
+      fetchResponses();
+    }
   }, [filter]);
 
   const copyToClipboard = async (text: string) => {
@@ -84,7 +91,7 @@ export default function ResponsesTab() {
     navigator.clipboard.writeText(response.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    window.open(`https://kwork.ru/projects/${response.kworkId}/view`, "_blank");
+    window.open(buildProjectUrl(response.url, response.platform, response.kworkId), "_blank");
   };
 
   if (loading) {
