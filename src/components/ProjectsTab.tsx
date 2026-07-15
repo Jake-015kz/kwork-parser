@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 interface Project {
@@ -82,7 +82,9 @@ export default function ProjectsTab() {
   const [platform, setPlatform] = useState("all");
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
-
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const prevFilterRef = useRef(`${filter}|${search}|${minBudget}|${maxBudget}|${platform}`);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -91,7 +93,7 @@ export default function ProjectsTab() {
   const fetchProjects = async () => {
     setLoading(true);
     const isVerdict = STATUS_FILTERS.find((s) => s.key === filter)?.filter === "verdict";
-    const params = new URLSearchParams({ limit: "100" });
+    const params = new URLSearchParams({ limit: "100", offset: "0" });
     if (isVerdict) {
       params.set("verdict", filter);
     } else {
@@ -105,6 +107,7 @@ export default function ProjectsTab() {
     const data = await res.json();
     setProjects(data.items || []);
     setTotal(data.total || 0);
+    setHasMore((data.items?.length || 0) < (data.total || 0));
     setLoading(false);
   };
 
@@ -166,10 +169,21 @@ export default function ProjectsTab() {
   };
 
   useEffect(() => {
+    const currentKey = `${filter}|${search}|${minBudget}|${maxBudget}|${platform}`;
+    const filtersChanged = prevFilterRef.current !== currentKey;
+    if (filtersChanged) {
+      prevFilterRef.current = currentKey;
+      setOffset(0);
+      setProjects([]);
+      setHasMore(false);
+      setLoading(true);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       const isVerdict = STATUS_FILTERS.find((s) => s.key === filter)?.filter === "verdict";
-      const params = new URLSearchParams({ limit: "100" });
+      const params = new URLSearchParams({ limit: "100", offset: String(offset) });
       if (isVerdict) {
         params.set("verdict", filter);
       } else {
@@ -181,12 +195,17 @@ export default function ProjectsTab() {
       if (platform !== "all") params.set("platform", platform);
       const res = await fetch(`/api/projects?${params}`);
       const data = await res.json();
-      setProjects(data.items || []);
+      if (offset === 0) {
+        setProjects(data.items || []);
+      } else {
+        setProjects((prev) => [...prev, ...(data.items || [])]);
+      }
       setTotal(data.total || 0);
+      setHasMore(offset + (data.items?.length || 0) < (data.total || 0));
       setLoading(false);
     };
     load();
-  }, [filter, search, minBudget, maxBudget, platform]);
+  }, [filter, search, minBudget, maxBudget, platform, offset]);
 
   const statusColor = (s: string) => {
     switch (s) {
@@ -407,7 +426,7 @@ export default function ProjectsTab() {
         <p className="text-[var(--muted)]">Нет проектов. Запустите парсинг.</p>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-[var(--muted)]">Всего: {total}</p>
+          <p className="text-sm text-[var(--muted)]">Всего: {total} | Показано: {projects.length}</p>
           {projects.map((p) => (
             <div
               key={p.id}
@@ -481,6 +500,15 @@ export default function ProjectsTab() {
               </div>
             </div>
           ))}
+          {hasMore && (
+            <button
+              onClick={() => setOffset((prev) => prev + 100)}
+              disabled={loading}
+              className="w-full py-3 text-sm text-[var(--muted)] border border-[var(--border)] rounded-lg hover:text-[var(--foreground)] hover:border-[var(--accent)]/30 transition-colors disabled:opacity-50"
+            >
+              {loading ? "Загрузка..." : "Загрузить ещё"}
+            </button>
+          )}
         </div>
       )}
     </div>

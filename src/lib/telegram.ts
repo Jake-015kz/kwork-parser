@@ -11,23 +11,31 @@ export const bot = TOKEN ? new Bot(TOKEN) : null;
 if (bot) {
   bot.command("start", async (ctx) => {
     const chatId = ctx.chat?.id;
-    if (chatId) {
-      try {
-        const existing = await db.select().from(settings)
-          .where(eq(settings.key, "telegram_chat_id"));
-        if (existing.length) {
-          await db.update(settings)
-            .set({ value: chatId } as { value: unknown })
-            .where(eq(settings.key, "telegram_chat_id"));
-        } else {
-          await db.insert(settings).values({
-            key: "telegram_chat_id",
-            value: chatId,
+    if (!chatId) return;
+
+    try {
+      const existing = await db.select().from(settings)
+        .where(eq(settings.key, "telegram_chat_id"));
+      if (existing.length) {
+        const current = existing[0].value as unknown as number;
+        if (current === chatId) {
+          await ctx.reply("✅ Бот уже привязан к этому чату.", {
+            link_preview_options: { is_disabled: true },
           });
+          return;
         }
-      } catch (e) {
-        console.error("Failed to save chat ID:", e);
+        await ctx.reply(
+          `⚠️ Бот уже привязан к другому чату (${current}). Используйте /reset для сброса.`,
+          { link_preview_options: { is_disabled: true } }
+        );
+        return;
       }
+      await db.insert(settings).values({
+        key: "telegram_chat_id",
+        value: chatId,
+      });
+    } catch (e) {
+      console.error("Failed to save chat ID:", e);
     }
 
     await ctx.reply(
@@ -40,6 +48,24 @@ if (bot) {
       + "Открыть дашборд: " + SITE_URL,
       { link_preview_options: { is_disabled: true } }
     );
+  });
+
+  bot.command("reset", async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+    try {
+      const existing = await db.select().from(settings)
+        .where(eq(settings.key, "telegram_chat_id"));
+      if (existing.length && (existing[0].value as unknown as number) === chatId) {
+        await db.delete(settings).where(eq(settings.key, "telegram_chat_id"));
+        await ctx.reply("🔄 Привязка снята. Отправьте /start заново.");
+      } else {
+        await ctx.reply("❌ Этот чат не привязан к боту.");
+      }
+    } catch (e) {
+      console.error("Failed to reset chat ID:", e);
+      await ctx.reply("⚠️ Ошибка при сбросе.");
+    }
   });
 
   bot.command("stats", async (ctx) => {

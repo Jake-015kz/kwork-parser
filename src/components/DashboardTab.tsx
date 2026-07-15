@@ -62,34 +62,40 @@ export default function DashboardTab() {
   const [kworkStatus, setKworkStatus] = useState<KworkStatus | null>(null);
 
   useEffect(() => {
-    fetch("/api/projects?limit=1000&status=all")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.items) {
-          const items: ProjectItem[] = data.items;
-          setStats({
-            total: data.total,
-            new: items.filter((p) => p.status === "new").length,
-            analyzed: items.filter((p) => p.status === "analyzed").length,
-            worth: items.filter((p) => p.analysis?.verdict === "worth").length,
-            maybe: items.filter((p) => p.analysis?.verdict === "maybe").length,
-            skipped: items.filter((p) => p.status === "skipped").length,
-            blacklisted: items.filter((p) => p.status === "blacklisted").length,
-            inProgress: items.filter((p) => p.status === "in_progress").length,
-          });
-        }
-      })
-      .catch(() => {});
+    const fetchAll = () => {
+      fetch("/api/projects?limit=1000&status=all")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.items) {
+            const items: ProjectItem[] = data.items;
+            setStats({
+              total: data.total,
+              new: items.filter((p) => p.status === "new").length,
+              analyzed: items.filter((p) => p.status === "analyzed").length,
+              worth: items.filter((p) => p.analysis?.verdict === "worth").length,
+              maybe: items.filter((p) => p.analysis?.verdict === "maybe").length,
+              skipped: items.filter((p) => p.status === "skipped").length,
+              blacklisted: items.filter((p) => p.status === "blacklisted").length,
+              inProgress: items.filter((p) => p.status === "in_progress").length,
+            });
+          }
+        })
+        .catch(() => {});
 
-    fetch("/api/stats")
-      .then((r) => r.json())
-      .then((d) => { if (d?.logs) setLogs(d.logs); })
-      .catch(() => {});
+      fetch("/api/stats")
+        .then((r) => r.json())
+        .then((d) => { if (d?.logs) setLogs(d.logs); })
+        .catch(() => {});
 
-    fetch("/api/kwork-status")
-      .then((r) => r.json())
-      .then((d) => { if (d?.connected !== undefined) setKworkStatus(d); })
-      .catch(() => {});
+      fetch("/api/kwork-status")
+        .then((r) => r.json())
+        .then((d) => { if (d?.connected !== undefined) setKworkStatus(d); })
+        .catch(() => {});
+    };
+
+    fetchAll();
+    const interval = setInterval(fetchAll, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
   const cards = [
