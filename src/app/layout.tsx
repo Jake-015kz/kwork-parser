@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <Toaster position="top-right" richColors />
         <nav className="border-b border-[var(--border)] px-4 py-3 md:px-6">
           <div className="max-w-7xl mx-auto flex items-center gap-4 md:gap-6">
             <Link href="/" className="text-lg font-bold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors">

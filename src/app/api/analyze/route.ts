@@ -34,7 +34,9 @@ export async function POST(req: NextRequest) {
       score: result.score,
       reasoning: result.reasoning,
       responseText: result.response?.body || null,
-      modelUsed: process.env.AI_MODEL || "deepseek/deepseek-chat-v3-0324:free",
+      responseCost: result.response?.cost || null,
+      responseTimeline: result.response?.timeline || null,
+      modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
     });
 
     await db

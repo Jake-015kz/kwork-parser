@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { buildProjectUrl } from "@/lib/utils";
 import ProjectFilters, { STATUS_FILTERS } from "./ProjectFilters";
 import ProjectCard from "./ProjectCard";
@@ -88,14 +89,26 @@ export default function ProjectsTab() {
   const handleAnalyze = async () => {
     if (!selectedId) return;
     setAnalyzing(true);
-    await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: selectedId }),
-    });
-    await openDetail(selectedId);
-    fetchProjects();
-    setAnalyzing(false);
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: selectedId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+        toast.error(err.error || "Не удалось проанализировать проект");
+        setAnalyzing(false);
+        return;
+      }
+      await openDetail(selectedId);
+      fetchProjects();
+      toast.success("Проект проанализирован");
+    } catch {
+      toast.error("Сервер недоступен");
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -107,15 +120,25 @@ export default function ProjectsTab() {
   };
 
   const handleSubmitToKwork = async (projectId: number, kworkId: number, platform?: string, url?: string | null) => {
-    const res = await fetch(`/api/responses?projectId=${projectId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.responseText) {
-      await navigator.clipboard.writeText(data.responseText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      if (platform === "fl" && url) window.open(url, "_blank");
-      else window.open(buildProjectUrl(url, platform || "kwork", kworkId), "_blank");
+    try {
+      const res = await fetch(`/api/responses?projectId=${projectId}`);
+      if (!res.ok) {
+        toast.error("Отклик ещё не сгенерирован. Нажмите «Анализировать»");
+        return;
+      }
+      const data = await res.json();
+      if (data.responseText) {
+        await navigator.clipboard.writeText(data.responseText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast.success("Отклик скопирован в буфер обмена");
+        if (platform === "fl" && url) window.open(url, "_blank");
+        else window.open(buildProjectUrl(url, platform || "kwork", kworkId), "_blank");
+      } else {
+        toast.error("Текст отклика пуст. Попробуйте сгенерировать заново");
+      }
+    } catch {
+      toast.error("Не удалось получить отклик");
     }
   };
 
