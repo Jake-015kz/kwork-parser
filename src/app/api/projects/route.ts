@@ -37,19 +37,23 @@ export async function GET(req: NextRequest) {
       conditions.push(lte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(maxBudget)) as ReturnType<typeof eq>);
     }
 
-    // Subquery to get latest analysis per project, with optional verdict filter
+    // Subquery to get latest analysis per project using DISTINCT ON (PostgreSQL)
     const latestAnalysis = db
-      .select({
+      .selectDistinctOn([analyses.projectId], {
         projectId: analyses.projectId,
         verdict: analyses.verdict,
         score: analyses.score,
         responseCost: analyses.responseCost,
-        maxId: sql<number>`MAX(${analyses.id})`.as("maxId"),
       })
       .from(analyses)
       .where(verdict && verdict !== "all" ? eq(analyses.verdict, verdict) : undefined)
-      .groupBy(analyses.projectId)
+      .orderBy(desc(analyses.projectId), desc(analyses.id))
       .as("latest_analysis");
+
+    // When verdict filter is active, only show projects that have a matching analysis
+    if (verdict && verdict !== "all") {
+      conditions.push(sql`${latestAnalysis.projectId} IS NOT NULL` as ReturnType<typeof eq>);
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
