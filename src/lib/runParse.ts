@@ -3,7 +3,8 @@ import { projects, syncLogs } from "@/db/schema";
 import { fetchAllCategoriesProjects, type KworkProject } from "./parser";
 import { fetchFlRssProjects } from "./parser-fl-rss";
 import { analyzeOneProject } from "./analyzeOne";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import { insertProjects } from "./insertProjects";
 import type { ParsedProject } from "./project-types";
 
 const ANALYSIS_DELAY_MS = 2000;
@@ -41,67 +42,12 @@ function kworkToParsed(kp: KworkProject): ParsedProject {
   };
 }
 
-async function insertAndAnalyze(parsed: ParsedProject[], errors: string[]): Promise<{ newCount: number; analyzedCount: number }> {
-  let newCount = 0;
-  let analyzedCount = 0;
-
-  const existingIds = await db
-    .select({ platformId: projects.platformId })
-    .from(projects);
-  const existingSet = new Set(existingIds.map((p) => p.platformId));
-
-  for (const p of parsed) {
-    if (existingSet.has(p.platformId)) continue;
-
-    const [inserted] = await db
-      .insert(projects)
-      .values({
-        platformId: p.platformId,
-        platform: p.platform,
-        kworkId: parseInt(p.platformId.split("_")[1]) || 0,
-        categoryId: p.categoryId,
-        name: p.name,
-        description: p.description,
-        priceLimit: p.budget,
-        maxDays: p.maxDays,
-        userName: p.userName,
-        userRating: p.userRating,
-        userHiredPercent: p.userHiredPercent,
-        userWantsCount: p.userWantsCount,
-        userBadges: p.userBadges,
-        url: p.url,
-        viewsCount: p.viewsCount,
-        dateCreate: p.dateCreate ? new Date(p.dateCreate) : null,
-        status: "new",
-      })
-      .returning();
-
-    newCount++;
-    analyzedCount++;
-
-    try {
-      await analyzeOneProject(inserted);
-    } catch (err) {
-      errors.push(`Analysis error for ${p.platformId}: ${err}`);
-      const [cur] = await db.select({ status: projects.status }).from(projects).where(eq(projects.id, inserted.id));
-      if (cur && cur.status === "new") {
-        await db.update(projects).set({ status: "error", updatedAt: new Date() }).where(eq(projects.id, inserted.id));
-      }
-    }
-
-    await new Promise((r) => setTimeout(r, ANALYSIS_DELAY_MS));
-  }
-
-  return { newCount, analyzedCount };
-}
-
 export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseResult> {
   const errors: string[] = [];
   let newCount = 0;
   let analyzedCount = 0;
   let backlogCount = 0;
 
-  // Fetch from Kwork
   let kworkProjects: KworkProject[] = [];
   try {
     kworkProjects = await fetchAllCategoriesProjects(maxPages);
@@ -109,7 +55,6 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     errors.push(`Kwork fetch error: ${err}`);
   }
 
-  // Fetch from FL.ru via RSS
   let flProjects: ParsedProject[] = [];
   try {
     flProjects = await fetchFlRssProjects();
@@ -117,22 +62,21 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     errors.push(`FL.ru RSS fetch error: ${err}`);
   }
 
-  // Convert and combine
   const allParsed: ParsedProject[] = [
     ...kworkProjects.map(kworkToParsed),
     ...flProjects,
   ];
 
-  const result = await insertAndAnalyze(allParsed, errors);
+  const result = await insertProjects(allParsed);
   newCount = result.newCount;
   analyzedCount = result.analyzedCount;
+  errors.push(...result.errors);
 
-  // Process backlog
   const backlog = await db
     .select()
     .from(projects)
     .where(inArray(projects.status, ["new", "error"]))
-    .orderBy(asc(projects.createdAt));
+    .orderBy(projects.createdAt);
 
   for (const p of backlog) {
     try {

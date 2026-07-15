@@ -1,0 +1,76 @@
+import { db } from "./db";
+import { projects } from "@/db/schema";
+import { analyzeOneProject } from "./analyzeOne";
+import { inArray } from "drizzle-orm";
+import type { ParsedProject } from "./project-types";
+
+const ANALYSIS_DELAY_MS = 2000;
+
+export interface InsertResult {
+  newCount: number;
+  analyzedCount: number;
+  errors: string[];
+}
+
+export async function insertProjects(
+  parsed: ParsedProject[],
+  opts: { analyze?: boolean } = {}
+): Promise<InsertResult> {
+  const { analyze = true } = opts;
+  const errors: string[] = [];
+  let newCount = 0;
+  let analyzedCount = 0;
+
+  const platformIdsToCheck = parsed.map((p) => p.platformId);
+  const existingIds = await db
+    .select({ platformId: projects.platformId })
+    .from(projects)
+    .where(inArray(projects.platformId, platformIdsToCheck));
+  const existingSet = new Set(existingIds.map((p) => p.platformId));
+
+  for (const p of parsed) {
+    if (existingSet.has(p.platformId)) continue;
+
+    const [inserted] = await db
+      .insert(projects)
+      .values({
+        platformId: p.platformId,
+        platform: p.platform,
+        kworkId: p.platform === "kwork" ? parseInt(p.platformId.split("_")[1]) || 0 : 0,
+        categoryId: p.categoryId,
+        name: p.name,
+        description: p.description,
+        priceLimit: p.budget,
+        maxDays: p.maxDays,
+        userName: p.userName,
+        userRating: p.userRating,
+        userHiredPercent: p.userHiredPercent,
+        userWantsCount: p.userWantsCount,
+        userBadges: p.userBadges,
+        url: p.url,
+        viewsCount: p.viewsCount,
+        dateCreate: p.dateCreate ? new Date(p.dateCreate) : null,
+        status: "new",
+      })
+      .returning();
+
+    newCount++;
+
+    if (analyze) {
+      try {
+        await analyzeOneProject(inserted);
+        analyzedCount++;
+      } catch (err) {
+        errors.push(`Analysis error for ${p.platformId}: ${err}`);
+        await db
+          .update(projects)
+          .set({ status: "error", updatedAt: new Date() })
+          .where(inArray(projects.id, [inserted.id]));
+      }
+
+      await new Promise((r) => setTimeout(r, ANALYSIS_DELAY_MS));
+    }
+  }
+
+  return { newCount, analyzedCount, errors };
+}

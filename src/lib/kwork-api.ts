@@ -1,5 +1,13 @@
 const API_BASE = "https://api.kwork.ru";
-const BASIC_AUTH = { username: "mobile_api", password: "qFvfRl7w" };
+
+function getBasicAuth() {
+  const username = process.env.KWORK_BASIC_USER;
+  const password = process.env.KWORK_BASIC_PASS;
+  if (!username || !password) {
+    throw new Error("KWORK_BASIC_USER/KWORK_BASIC_PASS not set in env");
+  }
+  return { username, password };
+}
 
 let cachedToken: string = "";
 let tokenExpires: number = 0;
@@ -16,8 +24,9 @@ async function getToken(): Promise<string> {
     throw new Error("KWORK_LOGIN/KWORK_PASSWORD not set in env");
   }
 
+  const basic = getBasicAuth();
   const credentials = Buffer.from(
-    `${BASIC_AUTH.username}:${BASIC_AUTH.password}`
+    `${basic.username}:${basic.password}`
   ).toString("base64");
 
   const res = await fetch(`${API_BASE}/signIn`, {
@@ -41,8 +50,9 @@ async function getToken(): Promise<string> {
 
 async function kworkPost(endpoint: string, params: Record<string, string> = {}): Promise<unknown> {
   const token = await getToken();
+  const basic = getBasicAuth();
   const credentials = Buffer.from(
-    `${BASIC_AUTH.username}:${BASIC_AUTH.password}`
+    `${basic.username}:${basic.password}`
   ).toString("base64");
 
   const res = await fetch(`${API_BASE}/${endpoint}?token=${token}`, {

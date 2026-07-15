@@ -4,8 +4,8 @@ const API_KEY = process.env.GROQ_API_KEY;
 const MODEL = process.env.AI_MODEL || "qwen/qwen3-32b";
 const BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 3000;
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
 
 export interface AnalysisResult {
   verdict: "worth" | "not_worth" | "maybe";
@@ -97,7 +97,9 @@ ${catStyle ? `${catStyle}` : ""}`;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
+      const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt - 1), 10000);
+      const jitter = Math.random() * delay * 0.3;
+      await new Promise((r) => setTimeout(r, delay + jitter));
     }
 
     try {
@@ -116,7 +118,7 @@ ${catStyle ? `${catStyle}` : ""}`;
         lastError = `HTTP ${res.status}: ${data.error?.message || JSON.stringify(data)}`;
         if (res.status === 429) {
           const retryAfter = res.headers.get("retry-after");
-          const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 10000) : RETRY_DELAY_MS;
+          const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 10000) : BASE_DELAY_MS * 1000;
           await new Promise((r) => setTimeout(r, waitMs));
         }
         continue;
