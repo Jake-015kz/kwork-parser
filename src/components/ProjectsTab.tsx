@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { buildProjectUrl } from "@/lib/utils";
 import ProjectFilters, { STATUS_FILTERS } from "./ProjectFilters";
@@ -34,7 +34,6 @@ export default function ProjectsTab() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const prevFilterRef = useRef(`${filter}|${search}|${minBudget}|${maxBudget}|${platform}`);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<{
     id: number; kworkId: number; platform: string; categoryId: number;
@@ -49,23 +48,42 @@ export default function ProjectsTab() {
   const [analyzing, setAnalyzing] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async (reset = false) => {
     setLoading(true);
-    const isVerdict = STATUS_FILTERS.find((s) => s.key === filter)?.filter === "verdict";
-    const params = new URLSearchParams({ limit: "100", offset: "0" });
-    if (isVerdict) params.set("verdict", filter);
-    else params.set("status", filter);
-    if (search) params.set("search", search);
-    if (minBudget) params.set("minBudget", minBudget);
-    if (maxBudget) params.set("maxBudget", maxBudget);
-    if (platform !== "all") params.set("platform", platform);
-    const res = await fetch(`/api/projects?${params}`);
-    const data = await res.json();
-    setProjects(data.items || []);
-    setTotal(data.total || 0);
-    setHasMore((data.items?.length || 0) < (data.total || 0));
-    setLoading(false);
-  };
+    try {
+      const isVerdict = STATUS_FILTERS.find((s) => s.key === filter)?.filter === "verdict";
+      const params = new URLSearchParams({ limit: "100", offset: String(reset ? 0 : offset) });
+      if (filter === "all") {
+        // No status/verdict filter - fetch all
+      } else if (isVerdict) {
+        params.set("verdict", filter);
+      } else {
+        params.set("status", filter);
+      }
+      if (search) params.set("search", search);
+      if (minBudget) params.set("minBudget", minBudget);
+      if (maxBudget) params.set("maxBudget", maxBudget);
+      if (platform !== "all") params.set("platform", platform);
+      const res = await fetch(`/api/projects?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (reset) setProjects(data.items || []);
+      else setProjects((prev) => [...prev, ...(data.items || [])]);
+      setTotal(data.total || 0);
+      setHasMore(offset + (data.items?.length || 0) < (data.total || 0));
+      if (reset) setOffset(0);
+    } catch (err) {
+      console.error("Failed to load projects:", err);
+      toast.error("Не удалось загрузить проекты");
+      if (reset) {
+        setProjects([]);
+        setTotal(0);
+        setHasMore(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, search, minBudget, maxBudget, platform, offset]);
 
   const handleStatusChange = async (id: number, status: string) => {
     await fetch("/api/projects/status", {
@@ -73,7 +91,7 @@ export default function ProjectsTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-    fetchProjects();
+    fetchProjects(true);
   };
 
   const openDetail = async (id: number) => {
@@ -102,7 +120,7 @@ export default function ProjectsTab() {
         return;
       }
       await openDetail(selectedId);
-      fetchProjects();
+      fetchProjects(true);
       toast.success("Проект проанализирован");
     } catch {
       toast.error("Сервер недоступен");
@@ -142,38 +160,47 @@ export default function ProjectsTab() {
     }
   };
 
-  useEffect(() => {
-    const currentKey = `${filter}|${search}|${minBudget}|${maxBudget}|${platform}`;
-    const filtersChanged = prevFilterRef.current !== currentKey;
-    if (filtersChanged) {
-      prevFilterRef.current = currentKey;
-      setOffset(0);
-      setProjects([]);
-      setHasMore(false);
-      setLoading(true);
-      return;
-    }
+  // Reset offset when filters change via wrappers
+  const resetAndSetFilter = useCallback((f: string) => {
+    setOffset(0);
+    setProjects([]);
+    setHasMore(false);
+    setFilter(f);
+  }, []);
 
-    const load = async () => {
-      setLoading(true);
-      const isVerdict = STATUS_FILTERS.find((s) => s.key === filter)?.filter === "verdict";
-      const params = new URLSearchParams({ limit: "100", offset: String(offset) });
-      if (isVerdict) params.set("verdict", filter);
-      else params.set("status", filter);
-      if (search) params.set("search", search);
-      if (minBudget) params.set("minBudget", minBudget);
-      if (maxBudget) params.set("maxBudget", maxBudget);
-      if (platform !== "all") params.set("platform", platform);
-      const res = await fetch(`/api/projects?${params}`);
-      const data = await res.json();
-      if (offset === 0) setProjects(data.items || []);
-      else setProjects((prev) => [...prev, ...(data.items || [])]);
-      setTotal(data.total || 0);
-      setHasMore(offset + (data.items?.length || 0) < (data.total || 0));
-      setLoading(false);
-    };
-    load();
-  }, [filter, search, minBudget, maxBudget, platform, offset]);
+  const resetAndSetSearch = useCallback((s: string) => {
+    setOffset(0);
+    setProjects([]);
+    setHasMore(false);
+    setSearch(s);
+  }, []);
+
+  const resetAndSetMinBudget = useCallback((v: string) => {
+    setOffset(0);
+    setProjects([]);
+    setHasMore(false);
+    setMinBudget(v);
+  }, []);
+
+  const resetAndSetMaxBudget = useCallback((v: string) => {
+    setOffset(0);
+    setProjects([]);
+    setHasMore(false);
+    setMaxBudget(v);
+  }, []);
+
+  const resetAndSetPlatform = useCallback((p: string) => {
+    setOffset(0);
+    setProjects([]);
+    setHasMore(false);
+    setPlatform(p);
+  }, []);
+
+  // Load projects when offset or filters change
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProjects();
+  }, [filter, search, minBudget, maxBudget, platform, offset, fetchProjects]);
 
   if (selectedId && detail) {
     return (
@@ -192,11 +219,11 @@ export default function ProjectsTab() {
   return (
     <div>
       <ProjectFilters
-        filter={filter} setFilter={setFilter}
-        search={search} setSearch={setSearch}
-        platform={platform} setPlatform={setPlatform}
-        minBudget={minBudget} setMinBudget={setMinBudget}
-        maxBudget={maxBudget} setMaxBudget={setMaxBudget}
+        filter={filter} setFilter={resetAndSetFilter}
+        search={search} setSearch={resetAndSetSearch}
+        platform={platform} setPlatform={resetAndSetPlatform}
+        minBudget={minBudget} setMinBudget={resetAndSetMinBudget}
+        maxBudget={maxBudget} setMaxBudget={resetAndSetMaxBudget}
       />
 
       {loading ? (

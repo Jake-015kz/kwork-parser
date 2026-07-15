@@ -62,10 +62,16 @@ export default function DashboardTab() {
   const [kworkStatus, setKworkStatus] = useState<KworkStatus | null>(null);
 
   useEffect(() => {
-    const fetchAll = () => {
-      fetch("/api/projects?limit=1000&status=all")
-        .then((r) => r.json())
-        .then((data) => {
+    const fetchAll = async () => {
+      try {
+        const [projectsRes, statsRes, kworkRes] = await Promise.all([
+          fetch("/api/projects?limit=1000&status=all"),
+          fetch("/api/stats"),
+          fetch("/api/kwork-status"),
+        ]);
+
+        if (projectsRes.ok) {
+          const data = await projectsRes.json();
           if (data?.items) {
             const items: ProjectItem[] = data.items;
             setStats({
@@ -79,18 +85,20 @@ export default function DashboardTab() {
               inProgress: items.filter((p) => p.status === "in_progress").length,
             });
           }
-        })
-        .catch(() => {});
+        }
 
-      fetch("/api/stats")
-        .then((r) => r.json())
-        .then((d) => { if (d?.logs) setLogs(d.logs); })
-        .catch(() => {});
+        if (statsRes.ok) {
+          const d = await statsRes.json();
+          if (d?.logs) setLogs(d.logs);
+        }
 
-      fetch("/api/kwork-status")
-        .then((r) => r.json())
-        .then((d) => { if (d?.connected !== undefined) setKworkStatus(d); })
-        .catch(() => {});
+        if (kworkRes.ok) {
+          const d = await kworkRes.json();
+          if (d?.connected !== undefined) setKworkStatus(d);
+        }
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+      }
     };
 
     fetchAll();

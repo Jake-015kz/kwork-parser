@@ -52,34 +52,49 @@ export default function SettingsTab() {
   }, []);
 
   const handleSave = async () => {
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId, minBudget }),
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId, minBudget }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    }
   };
 
   const addToBlacklist = async () => {
     if (!newUserName.trim()) return;
-    await fetch("/api/blacklist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userName: newUserName.trim(), reason: newReason.trim() }),
-    });
-    setNewUserName("");
-    setNewReason("");
-    fetchBlacklist();
+    try {
+      const res = await fetch("/api/blacklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userName: newUserName.trim(), reason: newReason.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to add to blacklist");
+      setNewUserName("");
+      setNewReason("");
+      fetchBlacklist();
+    } catch (err) {
+      console.error("Failed to add to blacklist:", err);
+    }
   };
 
   const removeFromBlacklist = async (id: number) => {
-    await fetch("/api/blacklist", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    fetchBlacklist();
+    try {
+      const res = await fetch("/api/blacklist", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Failed to remove from blacklist");
+      fetchBlacklist();
+    } catch (err) {
+      console.error("Failed to remove from blacklist:", err);
+    }
   };
 
   return (
