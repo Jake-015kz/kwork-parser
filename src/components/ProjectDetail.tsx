@@ -1,6 +1,7 @@
 "use client";
 
 import { buildProjectUrl } from "@/lib/utils";
+import { extractContacts, formatContacts } from "@/lib/contacts";
 
 interface AnalysisItem {
   id: number;
@@ -40,14 +41,18 @@ interface Props {
   detail: ProjectDetail;
   onBack: () => void;
   onAnalyze: () => void;
+  onGenerateResponse: (projectId: number) => void;
   analyzing: boolean;
   onSubmitToKwork: (projectId: number, kworkId: number, platform?: string, url?: string | null) => void;
   onCopyToClipboard: (text: string) => void;
   copied: boolean;
+  generating: boolean;
 }
 
-export default function ProjectDetail({ detail, onBack, onAnalyze, analyzing, onSubmitToKwork, onCopyToClipboard, copied }: Props) {
+export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateResponse, analyzing, onSubmitToKwork, onCopyToClipboard, copied, generating }: Props) {
   const latestAnalysis = detail.analyses?.[detail.analyses.length - 1];
+  const contacts = extractContacts(detail.description || "");
+  const formattedContacts = formatContacts(contacts);
 
   return (
     <div className="max-w-4xl">
@@ -70,6 +75,15 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, analyzing, on
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {formattedContacts.length > 0 && !latestAnalysis?.responseText && (
+            <button
+              onClick={() => onGenerateResponse(detail.id)}
+              disabled={generating}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm inline-flex items-center"
+            >
+              {generating ? "⏳ Генерация..." : "🔄 Сгенерировать ответ"}
+            </button>
+          )}
           {latestAnalysis?.responseText && (
             <button
               onClick={() => onSubmitToKwork(detail.id, detail.kworkId, detail.platform, detail.url)}
@@ -101,6 +115,19 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, analyzing, on
           <h2 className="text-sm font-semibold text-[var(--muted)] mb-2 uppercase">Описание</h2>
           <p className="text-sm whitespace-pre-wrap">{detail.description || "Нет описания"}</p>
         </div>
+
+        {formattedContacts.length > 0 && (
+          <div className="p-4 rounded-lg border border-green-400/20 bg-green-400/5">
+            <h2 className="text-sm font-semibold text-green-400 mb-2 uppercase">Контакты в описании</h2>
+            <div className="flex flex-wrap gap-2">
+              {formattedContacts.map((c, i) => (
+                <span key={i} className="px-2 py-1 text-xs rounded bg-green-400/10 text-green-400 border border-green-400/20">
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {detail.userBadges && detail.userBadges.length > 0 && (
           <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">

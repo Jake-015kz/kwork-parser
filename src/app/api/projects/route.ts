@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     const platform = searchParams.get("platform");
     const minBudget = searchParams.get("minBudget");
     const maxBudget = searchParams.get("maxBudget");
+    const hasContact = searchParams.get("hasContact");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -35,6 +36,9 @@ export async function GET(req: NextRequest) {
     }
     if (maxBudget) {
       conditions.push(lte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(maxBudget)) as ReturnType<typeof eq>);
+    }
+    if (hasContact === "true") {
+      conditions.push(sql`${projects.description} ~* '@|t\\.me|email|whatsapp|ватсап|\\+7|8\\s*\\(?'` as ReturnType<typeof eq>);
     }
 
     // Subquery to get latest analysis per project using DISTINCT ON (PostgreSQL)
@@ -74,6 +78,7 @@ export async function GET(req: NextRequest) {
           skipReason: projects.skipReason,
           url: projects.url,
           createdAt: projects.createdAt,
+          hasContact: sql<boolean>`CASE WHEN ${projects.description} ~* '@|t\\.me|email|whatsapp|ватсап|\\+7|8\\s*\\(?' THEN true ELSE false END`,
           analysis: {
             verdict: latestAnalysis.verdict,
             score: latestAnalysis.score,

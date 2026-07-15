@@ -19,6 +19,7 @@ interface Project {
   timeLeft: string | null;
   skipReason: string | null;
   url: string | null;
+  hasContact: boolean;
   createdAt: string;
   analysis: { verdict: string; score: number; responseCost: string | null } | null;
 }
@@ -30,6 +31,7 @@ export default function ProjectsTab() {
   const [minBudget, setMinBudget] = useState("");
   const [maxBudget, setMaxBudget] = useState("");
   const [platform, setPlatform] = useState("all");
+  const [hasContact, setHasContact] = useState(false);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -46,6 +48,7 @@ export default function ProjectsTab() {
       responseText: string | null; responseCost: string | null; responseTimeline: string | null; createdAt: string; }[];
   } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
 
   const fetchProjects = useCallback(async (reset = false) => {
@@ -53,7 +56,9 @@ export default function ProjectsTab() {
     try {
       const isVerdict = STATUS_FILTERS.find((s) => s.key === filter)?.filter === "verdict";
       const params = new URLSearchParams({ limit: "100", offset: String(reset ? 0 : offset) });
-      if (filter === "all") {
+      if (hasContact) {
+        params.set("hasContact", "true");
+      } else if (filter === "all") {
         // No status/verdict filter - fetch all
       } else if (isVerdict) {
         params.set("verdict", filter);
@@ -83,7 +88,7 @@ export default function ProjectsTab() {
     } finally {
       setLoading(false);
     }
-  }, [filter, search, minBudget, maxBudget, platform, offset]);
+  }, [filter, search, minBudget, maxBudget, platform, hasContact, offset]);
 
   const handleStatusChange = async (id: number, status: string) => {
     await fetch("/api/projects/status", {
@@ -126,6 +131,35 @@ export default function ProjectsTab() {
       toast.error("Сервер недоступен");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleGenerateResponse = async (projectId: number) => {
+    setGeneratingId(projectId);
+    try {
+      const res = await fetch("/api/generate-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+        toast.error(err.error || "Не удалось сгенерировать ответ");
+        setGeneratingId(null);
+        return;
+      }
+      const data = await res.json();
+      if (data.responseText) {
+        await navigator.clipboard.writeText(data.responseText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        fetchProjects(true);
+        toast.success("Ответ сгенерирован и скопирован");
+      }
+    } catch {
+      toast.error("Сервер недоступен");
+    } finally {
+      setGeneratingId(null);
     }
   };
 
@@ -200,7 +234,7 @@ export default function ProjectsTab() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProjects();
-  }, [filter, search, minBudget, maxBudget, platform, offset, fetchProjects]);
+  }, [filter, search, minBudget, maxBudget, platform, hasContact, offset, fetchProjects]);
 
   if (selectedId && detail) {
     return (
@@ -208,7 +242,9 @@ export default function ProjectsTab() {
         detail={detail}
         onBack={() => { setSelectedId(null); setDetail(null); }}
         onAnalyze={handleAnalyze}
+        onGenerateResponse={handleGenerateResponse}
         analyzing={analyzing}
+        generating={generatingId !== null}
         onSubmitToKwork={handleSubmitToKwork}
         onCopyToClipboard={copyToClipboard}
         copied={copied}
@@ -224,6 +260,7 @@ export default function ProjectsTab() {
         platform={platform} setPlatform={resetAndSetPlatform}
         minBudget={minBudget} setMinBudget={resetAndSetMinBudget}
         maxBudget={maxBudget} setMaxBudget={resetAndSetMaxBudget}
+        hasContact={hasContact} setHasContact={setHasContact}
       />
 
       {loading ? (
@@ -240,16 +277,18 @@ export default function ProjectsTab() {
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-[var(--muted)]">Всего: {total} | Показано: {projects.length}</p>
-          {projects.map((p) => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              onSelect={openDetail}
-              onStatusChange={handleStatusChange}
-              onSubmitToKwork={handleSubmitToKwork}
-              copied={copied}
-            />
-          ))}
+{projects.map((p) => (
+           <ProjectCard
+             key={p.id}
+             project={p}
+             onSelect={openDetail}
+             onStatusChange={handleStatusChange}
+             onSubmitToKwork={handleSubmitToKwork}
+             onGenerateResponse={handleGenerateResponse}
+             generatingId={generatingId}
+             copied={copied}
+           />
+         ))}
           {hasMore && (
             <button
               onClick={() => setOffset((prev) => prev + 100)}

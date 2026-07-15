@@ -14,6 +14,7 @@ interface Project {
   timeLeft: string | null;
   skipReason: string | null;
   url: string | null;
+  hasContact: boolean;
   analysis: { verdict: string; score: number; responseCost: string | null } | null;
 }
 
@@ -22,6 +23,8 @@ interface Props {
   onSelect: (id: number) => void;
   onStatusChange: (id: number, status: string) => void;
   onSubmitToKwork: (projectId: number, kworkId: number, platform?: string, url?: string | null) => void;
+  onGenerateResponse: (projectId: number) => void;
+  generatingId: number | null;
   copied: boolean;
 }
 
@@ -46,7 +49,7 @@ const statusLabel = (s: string) => {
   }
 };
 
-export default function ProjectCard({ project: p, onSelect, onStatusChange, onSubmitToKwork, copied }: Props) {
+export default function ProjectCard({ project: p, onSelect, onStatusChange, onSubmitToKwork, onGenerateResponse, generatingId, copied }: Props) {
   const verdictBadge = (v: string | undefined, s: number | undefined) => {
     if (!v) return null;
     const color = v === "worth" ? "text-emerald-400" : v === "maybe" ? "text-yellow-400" : "text-red-400";
@@ -87,6 +90,7 @@ export default function ProjectCard({ project: p, onSelect, onStatusChange, onSu
             {p.userName && <span className="hidden sm:inline">👤 {p.userName}</span>}
             {p.timeLeft && <span>⌛ {p.timeLeft}</span>}
             {p.analysis?.responseCost && <span>📤 {p.analysis.responseCost}</span>}
+            {p.hasContact && <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">📱 контакты</span>}
           </div>
           {p.skipReason && (
             <div className="mt-1 text-xs text-[var(--muted)]">{p.skipReason}</div>
@@ -100,14 +104,23 @@ export default function ProjectCard({ project: p, onSelect, onStatusChange, onSu
         </div>
       </div>
       <div className="flex gap-2 mt-2">
-        {p.analysis?.verdict === "worth" && p.analysis?.responseCost && (
-          <button
-            onClick={() => onSubmitToKwork(p.id, p.kworkId, p.platform, p.url)}
-            className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
-          >
-            {copied ? "✅ Скопировано" : "📤 Отправить"}
-          </button>
-        )}
+{p.analysis?.verdict === "worth" && p.analysis?.responseCost && (
+           <button
+             onClick={() => onSubmitToKwork(p.id, p.kworkId, p.platform, p.url)}
+             className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
+           >
+             {copied ? "✅ Скопировано" : "📤 Отправить"}
+           </button>
+         )}
+         {p.hasContact && !p.analysis?.verdict && (
+           <button
+             onClick={() => onGenerateResponse(p.id)}
+             disabled={generatingId === p.id}
+             className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+           >
+             {generatingId === p.id ? "⏳ Генерация..." : "📝 Ответ"}
+           </button>
+         )}
         <button
           onClick={() => onStatusChange(p.id, "in_progress")}
           className="px-2 py-1 text-xs rounded border border-[var(--border)] hover:border-blue-400 transition-colors"
