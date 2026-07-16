@@ -27,6 +27,36 @@ export async function GET() {
     .select({ value: sql<number>`count(*)` })
     .from(responses);
 
+  const [contactRows] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(projects)
+    .where(sql`${projects.description} ~* '@|t\\.me|email|whatsapp|ватсап|\\+7|8\\s*\\(?'`);
+
+  // Conversion stats
+  const [submittedRows] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(responses)
+    .where(sql`${responses.sent} = true`);
+
+  const [viewedRows] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(responses)
+    .where(sql`${responses.viewedAt} IS NOT NULL`);
+
+  const [conversionRows] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(responses)
+    .where(sql`${responses.respondedAt} IS NOT NULL`);
+
+  const [rejectedRows] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(responses)
+    .where(sql`${responses.rejectedAt} IS NOT NULL`);
+
+  const submittedCount = Number(submittedRows.value);
+  const conversionCount = Number(conversionRows.value);
+  const conversionRate = submittedCount > 0 ? Math.round((conversionCount / submittedCount) * 100) : 0;
+
   const logData = await db
     .select()
     .from(syncLogs)
@@ -40,6 +70,14 @@ export async function GET() {
       analyzed: Number(analyzedRows.value),
       worth: Number(worthRows.value),
       responded: Number(respondedRows.value),
+      withContacts: Number(contactRows.value),
+    },
+    conversion: {
+      submitted: submittedCount,
+      viewed: Number(viewedRows.value),
+      responded: conversionCount,
+      rejected: Number(rejectedRows.value),
+      conversionRate,
     },
     logs: logData,
   });

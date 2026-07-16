@@ -18,7 +18,7 @@ export async function POST() {
       results.push(`OK: ${stmt.substring(0, 60)}...`);
     } catch (err) {
       const msg = String(err);
-      if (msg.includes("already exists") || msg.includes("column") && msg.includes("does not exist") === false) {
+      if (msg.includes("already exists") || (msg.includes("column") && !msg.includes("does not exist"))) {
         results.push(`SKIP: ${stmt.substring(0, 60)}... (${msg.substring(0, 80)})`);
       } else {
         results.push(`ERR: ${stmt.substring(0, 60)}... (${msg.substring(0, 80)})`);

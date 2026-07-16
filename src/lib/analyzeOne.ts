@@ -56,7 +56,8 @@ export async function analyzeOneProject(
 
   const minBudget = await getMinBudget();
   if (minBudget && project.priceLimit) {
-    const price = parseFloat(project.priceLimit.replace(/[^0-9.,]/g, "").replace(",", "."));
+    const cleanPrice = String(project.priceLimit).replace(/[^0-9.,]/g, "").replace(",", ".");
+    const price = parseFloat(cleanPrice);
     if (!isNaN(price) && price < minBudget) {
       await db.update(projects)
         .set({ status: "skipped", skipReason: `Мин. бюджет ${minBudget} ₽, проект ${price} ₽`, updatedAt: new Date() })

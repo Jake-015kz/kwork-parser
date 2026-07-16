@@ -4,6 +4,7 @@ import Link from "next/link";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Все" },
+  { key: "recommended", label: "📤 Готово к отправке", filter: "recommended" },
   { key: "analyzed", label: "Готовы" },
   { key: "worth", label: "Стоит взять", filter: "verdict" },
   { key: "maybe", label: "Возможно", filter: "verdict" },
@@ -80,6 +81,8 @@ export default function ProjectFilters({
             <option value="all">Все платформы</option>
             <option value="kwork">Kwork</option>
             <option value="fl">FL.ru</option>
+            <option value="weblancer">Weblancer</option>
+            <option value="telegram">Telegram</option>
           </select>
           <input
             type="number"

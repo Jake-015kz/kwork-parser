@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { projects, syncLogs } from "@/db/schema";
 import { fetchAllCategoriesProjects, type KworkProject } from "./parser";
-import { fetchFlRssProjects } from "./parser-fl-rss";
+import { fetchWeblancerProjects } from "./parser-weblancer";
 import { analyzeOneProject } from "./analyzeOne";
 import { eq, inArray } from "drizzle-orm";
 import { insertProjects } from "./insertProjects";
@@ -55,16 +55,16 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     errors.push(`Kwork fetch error: ${err}`);
   }
 
-  let flProjects: ParsedProject[] = [];
+  let weblancerProjects: ParsedProject[] = [];
   try {
-    flProjects = await fetchFlRssProjects();
+    weblancerProjects = await fetchWeblancerProjects();
   } catch (err) {
-    errors.push(`FL.ru RSS fetch error: ${err}`);
+    errors.push(`Weblancer fetch error: ${err}`);
   }
 
   const allParsed: ParsedProject[] = [
     ...kworkProjects.map(kworkToParsed),
-    ...flProjects,
+    ...weblancerProjects,
   ];
 
   const result = await insertProjects(allParsed);
@@ -86,7 +86,7 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     } catch (err) {
       errors.push(`Backlog analysis error for project ${p.id}: ${err}`);
       const [cur] = await db.select({ status: projects.status }).from(projects).where(eq(projects.id, p.id));
-      if (cur && cur.status === "new") {
+      if (cur) {
         await db.update(projects).set({ status: "error", updatedAt: new Date() }).where(eq(projects.id, p.id));
       }
     }

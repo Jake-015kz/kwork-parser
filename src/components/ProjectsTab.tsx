@@ -21,7 +21,7 @@ interface Project {
   url: string | null;
   hasContact: boolean;
   createdAt: string;
-  analysis: { verdict: string; score: number; responseCost: string | null } | null;
+  analysis: { verdict: string; score: number; responseCost: string | null; responseText: string | null } | null;
 }
 
 export default function ProjectsTab() {
@@ -49,6 +49,9 @@ export default function ProjectsTab() {
   } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
+  const [generatingAB, setGeneratingAB] = useState(false);
+  const [abResult, setAbResult] = useState<{ variantA: { responseText: string; responseCost: string | null; responseTimeline: string | null }; variantB: { responseText: string; responseCost: string | null; responseTimeline: string | null } } | null>(null);
+  const [latestGenerated, setLatestGenerated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const fetchProjects = useCallback(async (reset = false) => {
@@ -150,10 +153,11 @@ export default function ProjectsTab() {
       }
       const data = await res.json();
       if (data.responseText) {
+        setLatestGenerated(data.responseText);
         await navigator.clipboard.writeText(data.responseText);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        fetchProjects(true);
+        await openDetail(projectId);
         toast.success("Ответ сгенерирован и скопирован");
       }
     } catch {
@@ -169,6 +173,51 @@ export default function ProjectsTab() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
+  };
+
+  const handleGenerateAB = async (projectId: number) => {
+    setGeneratingAB(true);
+    setAbResult(null);
+    try {
+      const res = await fetch("/api/generate-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, variant: "both" }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+        toast.error(err.error || "Не удалось сгенерировать A/B тест");
+        setGeneratingAB(false);
+        return;
+      }
+      const data = await res.json();
+      if (data.variantA && data.variantB) {
+        setAbResult(data);
+        toast.success("A/B тест сгенерирован");
+      }
+    } catch {
+      toast.error("Сервер недоступен");
+    } finally {
+      setGeneratingAB(false);
+    }
+  };
+
+  const handleSelectVariant = async (variant: "a" | "b", text: string) => {
+    if (!selectedId) return;
+    try {
+      await fetch("/api/responses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: selectedId, content: text, status: "queued", variant }),
+      });
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success(`Вариант ${variant.toUpperCase()} выбран и скопирован`);
+      setAbResult(null);
+    } catch {
+      toast.error("Не удалось сохранить вариант");
+    }
   };
 
   const handleSubmitToKwork = async (projectId: number, kworkId: number, platform?: string, url?: string | null) => {
@@ -240,11 +289,16 @@ export default function ProjectsTab() {
     return (
       <ProjectDetail
         detail={detail}
-        onBack={() => { setSelectedId(null); setDetail(null); }}
+        onBack={() => { setSelectedId(null); setDetail(null); setAbResult(null); setLatestGenerated(null); }}
         onAnalyze={handleAnalyze}
         onGenerateResponse={handleGenerateResponse}
+        onGenerateAB={handleGenerateAB}
         analyzing={analyzing}
+        abResult={abResult}
+        onSelectVariant={handleSelectVariant}
         generating={generatingId !== null}
+        generatingAB={generatingAB}
+        latestGenerated={latestGenerated}
         onSubmitToKwork={handleSubmitToKwork}
         onCopyToClipboard={copyToClipboard}
         copied={copied}
@@ -275,10 +329,10 @@ export default function ProjectsTab() {
       ) : projects.length === 0 ? (
         <p className="text-[var(--muted)]">Нет проектов. Запустите парсинг.</p>
       ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-[var(--muted)]">Всего: {total} | Показано: {projects.length}</p>
-{projects.map((p) => (
-           <ProjectCard
+<div className="space-y-3">
+           <p className="text-sm text-[var(--muted)]">Всего: {total} | Показано: {projects.length}</p>
+           {projects.map((p) => (
+             <ProjectCard
              key={p.id}
              project={p}
              onSelect={openDetail}

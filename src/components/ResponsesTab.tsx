@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildProjectUrl } from "@/lib/utils";
 
 interface ResponseItem {
@@ -47,27 +47,37 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: "Отклонено",
 };
 
+function formatResponseTime(sentAt: string | null, respondedAt: string | null): string | null {
+  if (!sentAt || !respondedAt) return null;
+  const diff = new Date(respondedAt).getTime() - new Date(sentAt).getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}д ${hours % 24}ч`;
+  if (hours > 0) return `${hours}ч`;
+  const minutes = Math.floor(diff / (1000 * 60));
+  return `${minutes}мин`;
+}
+
+function getResponseTimeColor(sentAt: string | null, respondedAt: string | null): string {
+  if (!sentAt || !respondedAt) return "";
+  const diff = new Date(respondedAt).getTime() - new Date(sentAt).getTime();
+  const hours = diff / (1000 * 60 * 60);
+  if (hours < 24) return "text-green-400";
+  if (hours < 72) return "text-yellow-400";
+  return "text-red-400";
+}
+
 export default function ResponsesTab() {
   const [responses, setResponses] = useState<ResponseItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [copied, setCopied] = useState(false);
-  const prevFilterRef = useRef(filter);
-
-  const fetchResponses = async () => {
-    setLoading(true);
-    const params = filter !== "all" ? `?status=${filter}` : "";
-    const res = await fetch(`/api/responses${params}`);
-    const data = await res.json();
-    setResponses(data.items || []);
-    setLoading(false);
-  };
 
   useEffect(() => {
-    if (prevFilterRef.current !== filter) {
-      prevFilterRef.current = filter;
-      fetchResponses();
-    }
+    fetch(`/api/responses${filter !== "all" ? `?status=${filter}` : ""}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setResponses(data.items || []);
+      });
   }, [filter]);
 
   const copyToClipboard = async (text: string) => {
@@ -84,7 +94,10 @@ export default function ResponsesTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-    fetchResponses();
+    // Refetch on filter change
+    void fetch(`/api/responses${filter !== "all" ? `?status=${filter}` : ""}`)
+      .then((res) => res.json())
+      .then((data) => setResponses(data.items || []));
   };
 
   const handleSubmitToKwork = (response: ResponseItem) => {
@@ -93,20 +106,6 @@ export default function ResponsesTab() {
     setTimeout(() => setCopied(false), 2000);
     window.open(buildProjectUrl(response.url, response.platform, response.kworkId), "_blank");
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)] animate-pulse">
-            <div className="h-4 bg-[var(--border)] rounded w-1/4 mb-2"></div>
-            <div className="h-3 bg-[var(--border)] rounded w-full mb-1"></div>
-            <div className="h-3 bg-[var(--border)] rounded w-2/3"></div>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -144,6 +143,16 @@ export default function ResponsesTab() {
                     )}
                     {new Date(r.createdAt).toLocaleString("ru-RU")}
                     {r.sentAt && <span> | Отправлено: {new Date(r.sentAt).toLocaleString("ru-RU")}</span>}
+                    {r.sentAt && r.respondedAt && (
+                      <span className={`ml-1 ${getResponseTimeColor(r.sentAt, r.respondedAt)}`}>
+                        | ⏱ {formatResponseTime(r.sentAt, r.respondedAt)}
+                      </span>
+                    )}
+                    {r.sentAt && r.rejectedAt && (
+                      <span className="ml-1 text-red-400">
+                        | ❌ {formatResponseTime(r.sentAt, r.rejectedAt)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

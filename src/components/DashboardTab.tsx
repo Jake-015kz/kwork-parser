@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 interface Stats {
   total: number;
@@ -12,6 +12,7 @@ interface Stats {
   skipped: number;
   blacklisted: number;
   inProgress: number;
+  withContacts: number;
 }
 
 interface Log {
@@ -39,27 +40,36 @@ interface KworkStatus {
   completedOrders?: number;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  "Новых": "#eab308",
-  "Анализ": "#22c55e",
-  "Пропущено": "#6b7280",
-  "В ч/с": "#ef4444",
-  "В работе": "#3b82f6",
-};
+const CHART_COLORS = ["#f59e0b", "#14b8a6", "#71717a", "#ef4444", "#3b82f6"];
+const VERDICT_COLORS = ["#14b8a6", "#f59e0b", "#71717a"];
 
-const VERDICT_COLORS: Record<string, string> = {
-  "Стоит взять": "#34d399",
-  "Возможно": "#facc15",
-  "Пропущено": "#6b7280",
-};
+function PulseRing() {
+  return (
+    <span className="relative flex h-3 w-3">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+      <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
+    </span>
+  );
+}
+
+function StatCard({ label, value, accent, icon }: { label: string; value: number; accent: string; icon: string }) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent p-5">
+      <div className="absolute -right-4 -top-4 text-6xl opacity-[0.03]">{icon}</div>
+      <div className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-2">{label}</div>
+      <div className={`text-4xl font-bold tracking-tight ${accent}`}>{value}</div>
+    </div>
+  );
+}
 
 export default function DashboardTab() {
   const [stats, setStats] = useState<Stats>({
     total: 0, new: 0, analyzed: 0, worth: 0, maybe: 0,
-    skipped: 0, blacklisted: 0, inProgress: 0,
+    skipped: 0, blacklisted: 0, inProgress: 0, withContacts: 0,
   });
   const [logs, setLogs] = useState<Log[]>([]);
   const [kworkStatus, setKworkStatus] = useState<KworkStatus | null>(null);
+  const [conversion, setConversion] = useState<{ submitted: number; viewed: number; responded: number; rejected: number; conversionRate: number } | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -74,7 +84,7 @@ export default function DashboardTab() {
           const data = await projectsRes.json();
           if (data?.items) {
             const items: ProjectItem[] = data.items;
-            setStats({
+            setStats((prev) => ({
               total: data.total,
               new: items.filter((p) => p.status === "new").length,
               analyzed: items.filter((p) => p.status === "analyzed").length,
@@ -83,13 +93,18 @@ export default function DashboardTab() {
               skipped: items.filter((p) => p.status === "skipped").length,
               blacklisted: items.filter((p) => p.status === "blacklisted").length,
               inProgress: items.filter((p) => p.status === "in_progress").length,
-            });
+              withContacts: prev.withContacts,
+            }));
           }
         }
 
         if (statsRes.ok) {
           const d = await statsRes.json();
           if (d?.logs) setLogs(d.logs);
+          if (d?.stats?.withContacts !== undefined) {
+            setStats((prev) => ({ ...prev, withContacts: d.stats.withContacts }));
+          }
+          if (d?.conversion) setConversion(d.conversion);
         }
 
         if (kworkRes.ok) {
@@ -106,17 +121,6 @@ export default function DashboardTab() {
     return () => clearInterval(interval);
   }, []);
 
-  const cards = [
-    { label: "Всего", value: stats.total, color: "text-blue-400" },
-    { label: "Новых", value: stats.new, color: "text-yellow-400" },
-    { label: "Стоит взять", value: stats.worth, color: "text-emerald-400" },
-    { label: "Возможно", value: stats.maybe, color: "text-yellow-400" },
-    { label: "В работе", value: stats.inProgress, color: "text-blue-400" },
-    { label: "Пропущено", value: stats.skipped, color: "text-[var(--muted)]" },
-    { label: "В ч/списке", value: stats.blacklisted, color: "text-red-400" },
-    { label: "Проанализировано", value: stats.analyzed, color: "text-green-400" },
-  ];
-
   const statusData = [
     { name: "Новых", value: stats.new },
     { name: "Анализ", value: stats.analyzed },
@@ -132,102 +136,156 @@ export default function DashboardTab() {
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      {cards.map((card) => (
-        <div key={card.label} className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
-          <div className="text-sm text-[var(--muted)] mb-1">{card.label}</div>
-          <div className={`text-3xl font-bold ${card.color}`}>{card.value}</div>
+    <div className="space-y-6">
+      {/* Hero: opportunity score */}
+      <div className="relative overflow-hidden rounded-2xl border border-amber-500/10 bg-gradient-to-br from-amber-500/[0.07] via-transparent to-transparent p-6 md:p-8">
+        <div className="flex items-center gap-3 mb-1">
+          <PulseRing />
+          <span className="text-xs font-medium uppercase tracking-widest text-amber-500/70">Сканирование активно</span>
         </div>
-      ))}
+        <div className="flex items-end gap-4 mt-4">
+          <span className="text-6xl md:text-7xl font-bold tracking-tighter text-amber-400">{stats.worth}</span>
+          <div className="pb-2">
+            <div className="text-sm text-zinc-400">горячих проектов</div>
+            <div className="text-xs text-zinc-600">готовы к отправке отклика</div>
+          </div>
+        </div>
+        <div className="flex gap-6 mt-6 text-sm">
+          <div><span className="text-zinc-500">Всего в базе </span><span className="font-semibold text-zinc-300">{stats.total}</span></div>
+          <div><span className="text-zinc-500">Новых </span><span className="font-semibold text-amber-400">{stats.new}</span></div>
+          <div><span className="text-zinc-500">С контактами </span><span className="font-semibold text-emerald-400">{stats.withContacts}</span></div>
+        </div>
+      </div>
 
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Возможно" value={stats.maybe} accent="text-amber-400" icon="?" />
+        <StatCard label="В работе" value={stats.inProgress} accent="text-blue-400" icon=">" />
+        <StatCard label="Проанализировано" value={stats.analyzed} accent="text-teal-400" icon="+" />
+        <StatCard label="В ч/списке" value={stats.blacklisted} accent="text-red-400" icon="x" />
+      </div>
+
+      {/* Kwork status */}
       {kworkStatus && (
-        <div className="col-span-full rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-          <h2 className="text-lg font-semibold mb-3">Kwork API</h2>
-          <div className="flex items-center gap-4 text-sm">
-            <span className={kworkStatus.connected ? "text-green-400" : "text-red-400"}>
-              {kworkStatus.connected ? "🟢 Подключено" : "🔴 Не настроено"}
-            </span>
-            {kworkStatus.connected && (
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-medium uppercase tracking-widest text-zinc-500">Kwork</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${kworkStatus.connected ? "bg-emerald-500" : "bg-red-500"}`} />
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            {kworkStatus.connected ? (
               <>
-                {kworkStatus.username && <span>👤 {kworkStatus.username}</span>}
-                {kworkStatus.rating !== undefined && <span>⭐ {kworkStatus.rating}</span>}
-                {kworkStatus.balance !== undefined && <span>💰 {kworkStatus.balance} ₽</span>}
+                {kworkStatus.username && <span className="text-zinc-300">{kworkStatus.username}</span>}
+                {kworkStatus.rating !== undefined && <span className="text-amber-400">{kworkStatus.rating} ★</span>}
+                {kworkStatus.balance !== undefined && <span className="text-zinc-400">{kworkStatus.balance} ₽</span>}
                 {kworkStatus.activeConnects !== undefined && (
-                  <span>🔗 {kworkStatus.activeConnects}/{kworkStatus.totalConnects} коннектов</span>
+                  <span className="text-zinc-400">
+                    <span className="text-blue-400 font-semibold">{kworkStatus.activeConnects}</span>/{kworkStatus.totalConnects} коннектов
+                  </span>
                 )}
                 {kworkStatus.completedOrders !== undefined && (
-                  <span>✅ {kworkStatus.completedOrders} заказов</span>
+                  <span className="text-zinc-400">{kworkStatus.completedOrders} заказов</span>
                 )}
               </>
+            ) : (
+              <span className="text-red-400">Не подключено</span>
             )}
           </div>
         </div>
       )}
 
-      <div className="col-span-full md:col-span-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-        <h2 className="text-lg font-semibold mb-3">По статусам</h2>
-        {statusData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={statusData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} />
-              <Tooltip
-                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px" }}
-                labelStyle={{ color: "var(--foreground)" }}
-              />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {statusData.map((entry) => (
-                  <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || "#6b7280"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="text-sm text-[var(--muted)]">Нет данных</p>
+      {/* Conversion funnel */}
+      {conversion && (
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
+          <div className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-4">Воронка откликов</div>
+          <div className="flex items-center gap-1 md:gap-2 overflow-x-auto pb-2">
+            {[
+              { label: "Отправлено", value: conversion.submitted, color: "bg-blue-500" },
+              { label: "Просмотрено", value: conversion.viewed, color: "bg-violet-500" },
+              { label: "Ответили", value: conversion.responded, color: "bg-emerald-500" },
+              { label: "Отклонено", value: conversion.rejected, color: "bg-red-500" },
+            ].map((step, i) => (
+              <div key={step.label} className="flex items-center gap-1 md:gap-2">
+                <div className="flex flex-col items-center min-w-[60px]">
+                  <div className={`w-full h-2 rounded-full ${step.color} opacity-80`} style={{ width: `${Math.max(20, (step.value / Math.max(conversion.submitted, 1)) * 100)}%` }} />
+                  <div className="text-[10px] text-zinc-500 mt-1 whitespace-nowrap">{step.label}</div>
+                  <div className="text-lg font-bold text-zinc-300">{step.value}</div>
+                </div>
+                {i < 3 && <span className="text-zinc-700 text-lg">→</span>}
+              </div>
+            ))}
+            <div className="ml-4 pl-4 border-l border-white/5">
+              <div className="text-[10px] text-zinc-500">Конверсия</div>
+              <div className={`text-2xl font-bold ${conversion.conversionRate >= 10 ? "text-emerald-400" : conversion.conversionRate >= 5 ? "text-amber-400" : "text-red-400"}`}>
+                {conversion.conversionRate}%
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {statusData.length > 0 && (
+          <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
+            <div className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-4">По статусам</div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={statusData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#52525b" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#52525b" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "rgba(255,255,255,0.02)" }}
+                  contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", fontSize: 12 }}
+                  labelStyle={{ color: "#a1a1aa" }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                  {statusData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.8} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {verdictData.length > 0 && (
+          <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
+            <div className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-4">По вердиктам</div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={verdictData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#52525b" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#52525b" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "rgba(255,255,255,0.02)" }}
+                  contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", fontSize: 12 }}
+                  labelStyle={{ color: "#a1a1aa" }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                  {verdictData.map((_, i) => (
+                    <Cell key={i} fill={VERDICT_COLORS[i % VERDICT_COLORS.length]} fillOpacity={0.8} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
 
-      <div className="col-span-full md:col-span-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-        <h2 className="text-lg font-semibold mb-3">По вердиктам</h2>
-        {verdictData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={verdictData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} />
-              <Tooltip
-                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px" }}
-                labelStyle={{ color: "var(--foreground)" }}
-              />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {verdictData.map((entry) => (
-                  <Cell key={entry.name} fill={VERDICT_COLORS[entry.name] || "#6b7280"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="text-sm text-[var(--muted)]">Нет данных</p>
-        )}
-      </div>
-
-      <div className="col-span-full rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-        <h2 className="text-lg font-semibold mb-3">Последние синхронизации</h2>
+      {/* Sync logs */}
+      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
+        <div className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-4">Синхронизации</div>
         {logs.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">Нет данных. Запустите парсинг.</p>
+          <p className="text-sm text-zinc-600">Нет данных. Запустите парсинг.</p>
         ) : (
-          <div className="space-y-2">
-            {logs.slice(0, 10).map((log) => (
-              <div key={log.id} className="flex items-center gap-3 text-sm border-b border-[var(--border)] pb-2">
-                <span className={log.status === "success" ? "text-green-400" : "text-red-400"}>
-                  {log.status === "success" ? "✅" : "❌"}
+          <div className="space-y-1">
+            {logs.slice(0, 8).map((log) => (
+              <div key={log.id} className="flex items-center gap-3 text-xs py-1.5 border-b border-white/[0.03] last:border-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${log.status === "success" ? "bg-emerald-500" : "bg-red-500"}`} />
+                <span className="text-zinc-600 font-mono tabular-nums">
+                  {new Date(log.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                 </span>
-                <span className="text-[var(--muted)]">
-                  {new Date(log.createdAt).toLocaleString("ru-RU")}
-                </span>
-                <span>
-                  Найдено: {log.projectsFound} | Новых: {log.projectsNew} | Анализ: {log.projectsAnalyzed}
+                <span className="text-zinc-400">
+                  {log.projectsFound} найдено · {log.projectsNew} новых · {log.projectsAnalyzed} анализ
                 </span>
               </div>
             ))}

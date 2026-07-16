@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       try {
         await analyzeOneProject(p);
         analyzed++;
-      } catch (err) {
+      } catch {
         errors++;
         await db
           .update(projects)

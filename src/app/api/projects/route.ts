@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const conditions: ReturnType<typeof eq>[] = [];
-    if (status && status !== "all") {
+    if (status && status !== "all" && status !== "recommended") {
       conditions.push(eq(projects.status, status));
     }
     if (platform && platform !== "all") {
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         verdict: analyses.verdict,
         score: analyses.score,
         responseCost: analyses.responseCost,
+        responseText: analyses.responseText,
       })
       .from(analyses)
       .where(verdict && verdict !== "all" ? eq(analyses.verdict, verdict) : undefined)
@@ -56,6 +57,12 @@ export async function GET(req: NextRequest) {
 
     // When verdict filter is active, only show projects that have a matching analysis
     if (verdict && verdict !== "all") {
+      conditions.push(sql`${latestAnalysis.projectId} IS NOT NULL` as ReturnType<typeof eq>);
+    }
+
+    // When "recommended" filter is active, show only high-score projects (score >= 8) that haven't been submitted
+    if (status === "recommended") {
+      conditions.push(sql`${latestAnalysis.score} >= 8` as ReturnType<typeof eq>);
       conditions.push(sql`${latestAnalysis.projectId} IS NOT NULL` as ReturnType<typeof eq>);
     }
 
@@ -83,6 +90,7 @@ export async function GET(req: NextRequest) {
             verdict: latestAnalysis.verdict,
             score: latestAnalysis.score,
             responseCost: latestAnalysis.responseCost,
+            responseText: latestAnalysis.responseText,
           },
         })
         .from(projects)

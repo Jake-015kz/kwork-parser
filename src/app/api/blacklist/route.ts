@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { blacklist } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const items = await db.select().from(blacklist)
     .orderBy(desc(blacklist.createdAt));
 

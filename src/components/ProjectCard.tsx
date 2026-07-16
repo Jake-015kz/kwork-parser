@@ -15,7 +15,7 @@ interface Project {
   skipReason: string | null;
   url: string | null;
   hasContact: boolean;
-  analysis: { verdict: string; score: number; responseCost: string | null } | null;
+  analysis: { verdict: string; score: number; responseCost: string | null; responseText: string | null } | null;
 }
 
 interface Props {
@@ -56,6 +56,13 @@ export default function ProjectCard({ project: p, onSelect, onStatusChange, onSu
     return <span className={`text-xs ${color}`}>{v} ({s}/10)</span>;
   };
 
+  const recommendBadge = (s: number | undefined) => {
+    if (!s) return null;
+    if (s >= 8) return <span className="text-xs text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">📤 Рекомендовано</span>;
+    if (s >= 6) return <span className="text-xs text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">🤔 Возможно</span>;
+    return null;
+  };
+
   return (
     <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)] transition-colors hover:border-[var(--accent)]/30">
       <div className="flex items-start justify-between gap-4">
@@ -72,18 +79,22 @@ export default function ProjectCard({ project: p, onSelect, onStatusChange, onSu
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 text-[var(--muted)] hover:text-green-400 transition-colors text-xs"
-              title={`Открыть на ${p.platform === "fl" ? "FL.ru" : "Kwork"}`}
+              title={`Открыть на ${p.platform === "fl" ? "FL.ru" : p.platform === "weblancer" ? "Weblancer" : p.platform === "telegram" ? "Telegram" : "Kwork"}`}
             >
               🔗
             </a>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1 text-sm text-[var(--muted)]">
             <span className={`px-2 py-0.5 text-xs rounded ${
-              p.platform === "fl" 
-                ? "bg-blue-400/10 text-blue-400 border border-blue-400/20" 
+              p.platform === "fl"
+                ? "bg-blue-400/10 text-blue-400 border border-blue-400/20"
+                : p.platform === "weblancer"
+                ? "bg-orange-400/10 text-orange-400 border border-orange-400/20"
+                : p.platform === "telegram"
+                ? "bg-sky-400/10 text-sky-400 border border-sky-400/20"
                 : "bg-green-400/10 text-green-400 border border-green-400/20"
             }`}>
-              {p.platform === "fl" ? "FL.ru" : "Kwork"}
+              {p.platform === "fl" ? "FL.ru" : p.platform === "weblancer" ? "Weblancer" : p.platform === "telegram" ? "Telegram" : "Kwork"}
             </span>
             {p.priceLimit && <span>💰 {p.priceLimit} ₽</span>}
             {p.maxDays && <span>⏱ {p.maxDays} дн.</span>}
@@ -98,29 +109,28 @@ export default function ProjectCard({ project: p, onSelect, onStatusChange, onSu
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {verdictBadge(p.analysis?.verdict, p.analysis?.score)}
+          {recommendBadge(p.analysis?.score)}
           <span className={`px-2 py-0.5 text-xs rounded ${statusColor(p.status)}`}>
             {statusLabel(p.status)}
           </span>
         </div>
       </div>
       <div className="flex gap-2 mt-2">
-{p.analysis?.verdict === "worth" && p.analysis?.responseCost && (
-           <button
-             onClick={() => onSubmitToKwork(p.id, p.kworkId, p.platform, p.url)}
-             className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
-           >
-             {copied ? "✅ Скопировано" : "📤 Отправить"}
-           </button>
-         )}
-         {p.hasContact && !p.analysis?.verdict && (
-           <button
-             onClick={() => onGenerateResponse(p.id)}
-             disabled={generatingId === p.id}
-             className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
-           >
-             {generatingId === p.id ? "⏳ Генерация..." : "📝 Ответ"}
-           </button>
-         )}
+          {p.analysis?.responseCost && (
+            <button
+              onClick={() => onSubmitToKwork(p.id, p.kworkId, p.platform, p.url)}
+              className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
+            >
+              {copied ? "✅ Скопировано" : "📤 Отправить"}
+            </button>
+          )}
+          <button
+            onClick={() => onGenerateResponse(p.id)}
+            disabled={generatingId === p.id}
+            className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {generatingId === p.id ? "⏳ Генерация..." : (p.analysis?.responseText ? "🔄 Обновить" : "📝 Ответ")}
+          </button>
         <button
           onClick={() => onStatusChange(p.id, "in_progress")}
           className="px-2 py-1 text-xs rounded border border-[var(--border)] hover:border-blue-400 transition-colors"

@@ -4,8 +4,8 @@ import { db } from "./db";
 import { settings, projects, analyses } from "@/db/schema";
 import { buildProjectUrl } from "./utils";
 
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const SITE_URL = process.env.SITE_URL || "http://localhost:3000";
+const TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN;
+const SITE_URL = process.env.SITE_URL || process.env.site_url || "http://localhost:3000";
 
 export const bot = TOKEN ? new Bot(TOKEN) : null;
 

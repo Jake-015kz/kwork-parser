@@ -42,14 +42,19 @@ interface Props {
   onBack: () => void;
   onAnalyze: () => void;
   onGenerateResponse: (projectId: number) => void;
+  onGenerateAB: (projectId: number) => void;
   analyzing: boolean;
+  abResult: { variantA: { responseText: string; responseCost: string | null; responseTimeline: string | null }; variantB: { responseText: string; responseCost: string | null; responseTimeline: string | null } } | null;
+  onSelectVariant: (variant: "a" | "b", text: string) => void;
+  latestGenerated: string | null;
   onSubmitToKwork: (projectId: number, kworkId: number, platform?: string, url?: string | null) => void;
   onCopyToClipboard: (text: string) => void;
   copied: boolean;
   generating: boolean;
+  generatingAB: boolean;
 }
 
-export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateResponse, analyzing, onSubmitToKwork, onCopyToClipboard, copied, generating }: Props) {
+export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateResponse, onGenerateAB, analyzing, abResult, onSelectVariant, latestGenerated, onSubmitToKwork, onCopyToClipboard, copied, generating, generatingAB }: Props) {
   const latestAnalysis = detail.analyses?.[detail.analyses.length - 1];
   const contacts = extractContacts(detail.description || "");
   const formattedContacts = formatContacts(contacts);
@@ -75,19 +80,24 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateRes
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {formattedContacts.length > 0 && !latestAnalysis?.responseText && (
-            <button
-              onClick={() => onGenerateResponse(detail.id)}
-              disabled={generating}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm inline-flex items-center"
-            >
-              {generating ? "⏳ Генерация..." : "🔄 Сгенерировать ответ"}
-            </button>
-          )}
+          <button
+            onClick={() => onGenerateResponse(detail.id)}
+            disabled={generating}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm inline-flex items-center whitespace-nowrap"
+          >
+            {generating ? "⏳ Генерация..." : (latestAnalysis?.responseText ? "🔄 Обновить отклик" : "📝 Сгенерировать отклик")}
+          </button>
+          <button
+            onClick={() => onGenerateAB(detail.id)}
+            disabled={generatingAB}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-sm inline-flex items-center whitespace-nowrap"
+          >
+            {generatingAB ? "⏳ A/B..." : "🅰️🅱️ A/B Тест"}
+          </button>
           {latestAnalysis?.responseText && (
             <button
               onClick={() => onSubmitToKwork(detail.id, detail.kworkId, detail.platform, detail.url)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm inline-flex items-center"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm inline-flex items-center whitespace-nowrap"
             >
               {copied ? "✅ Скопировано" : "📤 Отправить отклик"}
             </button>
@@ -96,14 +106,14 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateRes
             href={buildProjectUrl(detail.url, detail.platform, detail.kworkId)}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 bg-[var(--card)] border border-[var(--border)] text-[var(--muted)] rounded-lg hover:text-[var(--foreground)] transition-colors text-sm inline-flex items-center"
+            className="px-4 py-2 bg-[var(--card)] border border-[var(--border)] text-[var(--muted)] rounded-lg hover:text-[var(--foreground)] transition-colors text-sm inline-flex items-center whitespace-nowrap"
           >
-            🔗 {detail.platform === "fl" ? "На FL.ru" : "На Kwork"}
+            🔗 {detail.platform === "fl" ? "На FL.ru" : detail.platform === "weblancer" ? "На Weblancer" : detail.platform === "telegram" ? "В Telegram" : "На Kwork"}
           </a>
           <button
             onClick={onAnalyze}
             disabled={analyzing}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
           >
             {analyzing ? "Анализ..." : "Анализировать"}
           </button>
@@ -120,11 +130,52 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateRes
           <div className="p-4 rounded-lg border border-green-400/20 bg-green-400/5">
             <h2 className="text-sm font-semibold text-green-400 mb-2 uppercase">Контакты в описании</h2>
             <div className="flex flex-wrap gap-2">
-              {formattedContacts.map((c, i) => (
-                <span key={i} className="px-2 py-1 text-xs rounded bg-green-400/10 text-green-400 border border-green-400/20">
-                  {c}
-                </span>
+              {contacts.telegram.map((tg, i) => (
+                <a
+                  key={`tg-${i}`}
+                  href={`https://t.me/${tg.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1 text-xs rounded bg-green-400/10 text-green-400 border border-green-400/20 hover:bg-green-400/20 transition-colors inline-flex items-center gap-1"
+                >
+                  📱 @{tg.replace(/^@/, "")}
+                </a>
               ))}
+              {contacts.email.map((e, i) => (
+                <a
+                  key={`email-${i}`}
+                  href={`mailto:${e}`}
+                  className="px-2 py-1 text-xs rounded bg-green-400/10 text-green-400 border border-green-400/20 hover:bg-green-400/20 transition-colors inline-flex items-center gap-1"
+                >
+                  ✉️ {e}
+                </a>
+              ))}
+              {contacts.whatsapp.map((w, i) => (
+                <a
+                  key={`wa-${i}`}
+                  href={`https://wa.me/${w.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1 text-xs rounded bg-green-400/10 text-green-400 border border-green-400/20 hover:bg-green-400/20 transition-colors inline-flex items-center gap-1"
+                >
+                  💬 WhatsApp
+                </a>
+              ))}
+              {contacts.phone.map((p, i) => (
+                <a
+                  key={`phone-${i}`}
+                  href={`tel:${p.replace(/[^0-9+]/g, "")}`}
+                  className="px-2 py-1 text-xs rounded bg-green-400/10 text-green-400 border border-green-400/20 hover:bg-green-400/20 transition-colors inline-flex items-center gap-1"
+                >
+                  📞 {p}
+                </a>
+              ))}
+              <button
+                onClick={() => onCopyToClipboard(formattedContacts.join(", "))}
+                className="px-2 py-1 text-xs rounded bg-green-400/20 text-green-400 border border-green-400/30 hover:bg-green-400/30 transition-colors"
+              >
+                {copied ? "✅ Скопировано" : "📋 Копировать все"}
+              </button>
             </div>
           </div>
         )}
@@ -161,12 +212,12 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateRes
                 ))}
               </div>
             )}
-            {latestAnalysis.responseText && (
+            {(latestGenerated || latestAnalysis?.responseText) && (
               <div className="mt-3 p-3 rounded bg-[var(--background)] border border-[var(--border)]">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-semibold text-[var(--muted)] uppercase">Сгенерированный отклик</h3>
                   <button
-                    onClick={() => latestAnalysis.responseText && onCopyToClipboard(latestAnalysis.responseText)}
+                    onClick={() => onCopyToClipboard(latestGenerated || latestAnalysis?.responseText || "")}
                     className="text-xs px-2 py-1 rounded bg-[var(--accent)] text-black font-medium hover:bg-[var(--accent-hover)] transition-colors"
                   >
                     {copied ? "✅ Скопировано" : "📋 Копировать"}
@@ -184,9 +235,41 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateRes
                     <span className="font-medium">{latestAnalysis.responseTimeline}</span>
                   </div>
                 )}
-                <pre className="text-sm whitespace-pre-wrap font-sans">{latestAnalysis.responseText}</pre>
+                <pre className="text-sm whitespace-pre-wrap font-sans">{latestGenerated || latestAnalysis?.responseText}</pre>
               </div>
             )}
+          </div>
+        )}
+
+        {abResult && (
+          <div className="p-4 rounded-lg border border-purple-400/20 bg-purple-400/5">
+            <h2 className="text-sm font-semibold text-purple-400 mb-3 uppercase">🅰️🅱️ A/B Результат</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 rounded bg-[var(--background)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold text-[var(--muted)] uppercase">🅰️ Вариант А (Консультант)</h3>
+                  <button
+                    onClick={() => onSelectVariant("a", abResult.variantA.responseText)}
+                    className="text-xs px-2 py-1 rounded bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                  >
+                    Выбрать A
+                  </button>
+                </div>
+                <pre className="text-sm whitespace-pre-wrap font-sans">{abResult.variantA.responseText}</pre>
+              </div>
+              <div className="p-3 rounded bg-[var(--background)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold text-[var(--muted)] uppercase">🅱️ Вариант B (Партнёр)</h3>
+                  <button
+                    onClick={() => onSelectVariant("b", abResult.variantB.responseText)}
+                    className="text-xs px-2 py-1 rounded bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                  >
+                    Выбрать B
+                  </button>
+                </div>
+                <pre className="text-sm whitespace-pre-wrap font-sans">{abResult.variantB.responseText}</pre>
+              </div>
+            </div>
           </div>
         )}
       </div>

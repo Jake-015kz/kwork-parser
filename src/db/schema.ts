@@ -32,8 +32,8 @@ export const projects = pgTable("projects", {
 }));
 
 export const analyses = pgTable("analyses", {
-  id: serial("id").primaryKey(),
-  projectId: serial("project_id").references(() => projects.id).notNull(),
+   id: serial("id").primaryKey(),
+   projectId: integer("project_id").references(() => projects.id).notNull(),
   verdict: varchar("verdict", { length: 20 }).notNull(),
   score: integer("score"),
   reasoning: jsonb("reasoning"),
@@ -47,9 +47,10 @@ export const analyses = pgTable("analyses", {
 });
 
 export const responses = pgTable("responses", {
-  id: serial("id").primaryKey(),
-  projectId: serial("project_id").references(() => projects.id).notNull(),
+   id: serial("id").primaryKey(),
+   projectId: integer("project_id").references(() => projects.id).notNull(),
   content: text("content").notNull(),
+  variant: varchar("variant", { length: 10 }).default("a"),
   status: varchar("status", { length: 20 }).notNull().default("queued"),
   kworkOfferId: varchar("kwork_offer_id", { length: 100 }),
   sent: boolean("sent").notNull().default(false),

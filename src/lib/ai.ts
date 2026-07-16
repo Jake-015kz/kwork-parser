@@ -172,22 +172,19 @@ export async function generateResponse(
     throw new Error("GROQ_API_KEY is not set");
   }
 
-  const systemPrompt = `Ты — фрилансер-консультант. Пишишь отклики на проекты с Kwork.ru и FL.ru.
-Напиши текст отклика на проект. Максимум 2000 символов.
+  const systemPrompt = `Ты — фрилансер. Пиши короткий отклик на проект.
 
-Структура отклика:
-1. Покажи что понял задачу (перефразируй суть проекта своими словами)
-2. Предложи решение (что получит клиент, без технических деталей)
-3. Упомяни стек или экспертизу (кратко, по делу)
-4. Задай уточняющий вопрос (конкретный, на который легко ответить)
+Структура (строго 3-4 предложения):
+1. Что понял из задачи (1 предложение)
+2. Что сделаю и какой результат получишь (1-2 предложения)  
+3. Вопрос по деталям (1 предложение)
 
 Правила:
-- Говори на языке результата, а не инструментов (не "подключу API", а "настрою автоматическую выгрузку")
-- Звучать как консультант, не проситель
-- Не пиши "я новичок", "для портфолио", "буду рад", "с радостью", "обращайтесь"
-- Не извиняйся и не оправдывайся
-- Максимум 2000 символов
-- Не используй markdown, просто текст`;
+- Пиши на языке результата, не технический жаргон
+- Не пиши "буду рад", "с радостью", "обращайтесь", "рассмотрю"
+- Не извиняйся
+- Максимум 500 символов
+- Просто текст, без markdown и нумерации`;
 
   const userPrompt = `Проект: ${name}
 Описание: ${description}
@@ -201,7 +198,7 @@ export async function generateResponse(
       { role: "user", content: userPrompt },
     ],
     temperature: 0.8,
-    max_tokens: 2048,
+    max_tokens: 512,
   });
 
   let lastError: string = "";
@@ -241,7 +238,7 @@ export async function generateResponse(
         continue;
       }
 
-      const text = raw.slice(0, 2000);
+      const text = raw.slice(0, 500);
 
       const timelineMatch = text.match(/(\d+[-–]\d+\s*дн)/i);
       const timeline = timelineMatch ? timelineMatch[1] : (maxDays ? `${maxDays} дн` : "2-3 дн");
@@ -257,4 +254,129 @@ export async function generateResponse(
   }
 
   throw new Error(`AI failed after ${MAX_RETRIES + 1} attempts: ${lastError}`);
+}
+
+const PROMPT_CONSULTANT = `Ты — фрилансер. Пиши короткий отклик на проект.
+
+Стиль: Уверенный эксперт. Прямо и по делу.
+
+Структура (строго 3-4 предложения):
+1. Что понял из задачи (1 предложение)
+2. Что сделаю и какой результат (1-2 предложения)
+3. Вопрос по деталям (1 предложение)
+
+Правила:
+- Пиши на языке результата
+- Не пиши "буду рад", "с радостью", "обращайтесь"
+- Максимум 500 символов, без markdown`;
+
+const PROMPT_PARTNER = `Ты — фрилансер. Пиши короткий отклик на проект.
+
+Стиль: Дружеский, как коллега. Спонимание задачи.
+
+Структура (строго 3-4 предложения):
+1. Что понял из задачи и почему интересно (1 предложение)
+2. Как решу и что получишь (1-2 предложения)
+3. Вопрос (1 предложение)
+
+Правила:
+- Звучать как соавтор, не продавец
+- Не пиши "буду рад", "с радостью", "обращайтесь"
+- Максимум 500 символов, без markdown`;
+
+async function callGroq(systemPrompt: string, userPrompt: string): Promise<string> {
+  if (!API_KEY) throw new Error("GROQ_API_KEY is not set");
+
+  const body = JSON.stringify({
+    model: MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.8,
+    max_tokens: 512,
+  });
+
+  let lastError = "";
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt - 1), 10000);
+      const jitter = Math.random() * delay * 0.3;
+      await new Promise((r) => setTimeout(r, delay + jitter));
+    }
+
+    try {
+      const res = await fetch(BASE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        lastError = `HTTP ${res.status}: ${data.error?.message || JSON.stringify(data)}`;
+        if (res.status === 429) {
+          const retryAfter = res.headers.get("retry-after");
+          const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 10000) : BASE_DELAY_MS * 1000;
+          await new Promise((r) => setTimeout(r, waitMs));
+        }
+        continue;
+      }
+
+      const raw = data.choices?.[0]?.message?.content;
+      if (!raw) {
+        lastError = `AI error: no content`;
+        continue;
+      }
+
+      return raw.slice(0, 500);
+    } catch (e) {
+      lastError = String(e);
+    }
+  }
+
+  throw new Error(`AI failed after ${MAX_RETRIES + 1} attempts: ${lastError}`);
+}
+
+export interface ABResult {
+  variantA: GenerateResponseResult;
+  variantB: GenerateResponseResult;
+}
+
+export async function generateTwoResponses(
+  name: string,
+  description: string,
+  price: string | null,
+  maxDays: number | null,
+): Promise<ABResult> {
+  const userPrompt = `Проект: ${name}
+Описание: ${description}
+Бюджет: ${price ? `${price} ₽` : "не указан"}
+Срок: ${maxDays ? `${maxDays} дней` : "не указан"}`;
+
+  const [textA, textB] = await Promise.all([
+    callGroq(PROMPT_CONSULTANT, userPrompt),
+    callGroq(PROMPT_PARTNER, userPrompt),
+  ]);
+
+  const timelineA = textA.match(/(\d+[-–]\d+\s*дн)/i)?.[1] || (maxDays ? `${maxDays} дн` : "2-3 дн");
+  const timelineB = textB.match(/(\d+[-–]\d+\s*дн)/i)?.[1] || (maxDays ? `${maxDays} дн` : "2-3 дн");
+
+  return {
+    variantA: {
+      responseText: textA,
+      responseCost: price ? `${price} ₽` : null,
+      responseTimeline: timelineA,
+    },
+    variantB: {
+      responseText: textB,
+      responseCost: price ? `${price} ₽` : null,
+      responseTimeline: timelineB,
+    },
+  };
 }
