@@ -30,16 +30,29 @@ export async function POST(req: NextRequest) {
         project.maxDays,
       );
 
-      await db.insert(analyses).values({
-        projectId: project.id,
-        verdict: "generated",
-        score: 0,
-        reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
-        responseText: result.variantA.responseText,
-        responseCost: result.variantA.responseCost,
-        responseTimeline: result.variantA.responseTimeline,
-        modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
-      });
+      // Сохраняем оба варианта для A/B-сравнения
+      await db.insert(analyses).values([
+        {
+          projectId: project.id,
+          verdict: "generated",
+          score: 0,
+          reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
+          responseText: result.variantA.responseText,
+          responseCost: result.variantA.responseCost,
+          responseTimeline: result.variantA.responseTimeline,
+          modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
+        },
+        {
+          projectId: project.id,
+          verdict: "generated",
+          score: 0,
+          reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
+          responseText: result.variantB.responseText,
+          responseCost: result.variantB.responseCost,
+          responseTimeline: result.variantB.responseTimeline,
+          modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
+        },
+      ]);
 
       return NextResponse.json({
         variantA: result.variantA,

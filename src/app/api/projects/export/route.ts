@@ -1,9 +1,13 @@
 import { db } from "@/lib/db";
 import { projects, analyses } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminToken } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   try {
     const items = await db
       .select({

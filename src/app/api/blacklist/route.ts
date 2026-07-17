@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { blacklist } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { requireAdminToken } from "@/lib/auth";
 
 export async function GET() {
   const items = await db.select().from(blacklist)
@@ -11,6 +12,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const { userName, reason } = await req.json();
 
   const [existing] = await db.select().from(blacklist)
@@ -34,6 +38,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const { id } = await req.json();
   await db.delete(blacklist).where(eq(blacklist.id, id));
   return NextResponse.json({ ok: true });

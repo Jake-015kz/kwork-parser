@@ -47,7 +47,7 @@ export const EXCLUDED_KEYWORDS = [
 export const EXCLUDED_CATEGORY_IDS = new Set([73]); // Тексты и наполнение сайта
 
 export const SYSTEM_PROMPT_BASE = `Ты — аналитик проектов для опытного фрилансера (React/Next.js, Python, Telegram боты, верстка).
-Работаешь с проектами с Kwork.ru и FL.ru.
+Работаешь с проектами с Kwork.ru.
 
 ТВОЯ СПЕЦИАЛИЗАЦИЯ (ОТВЕЧАЙ ТОЛЬКО НА ЭТО):
 - Telegram боты, парсеры, скрипты на Python/JS

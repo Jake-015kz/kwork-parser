@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { projects, analyses, blacklist, settings } from "@/db/schema";
-import { analyzeProject, checkClientSpammer, type AnalysisResult } from "./ai";
+import { analyzeProject, classifyClient, type AnalysisResult } from "./ai";
 import { sendProjectNotification } from "./telegram";
 import { EXCLUDED_KEYWORDS, EXCLUDED_CATEGORY_IDS } from "./prompt";
 import { eq } from "drizzle-orm";
@@ -81,9 +81,10 @@ export async function analyzeOneProject(
     throw new Error(`Excluded keyword: "${excludedKw}"`);
   }
 
-  if (checkClientSpammer(project.userWantsCount, project.userHiredPercent)) {
+  const clientVerdict = classifyClient(project.userWantsCount, project.userHiredPercent);
+  if (clientVerdict.action === "block") {
     await db.update(projects)
-      .set({ status: "blacklisted", skipReason: `Спамер: ${project.userWantsCount} проектов, ${project.userHiredPercent}% найма`, updatedAt: new Date() })
+      .set({ status: "blacklisted", skipReason: clientVerdict.reason, updatedAt: new Date() })
       .where(eq(projects.id, project.id));
 
     if (userName) {
@@ -92,7 +93,7 @@ export async function analyzeOneProject(
       if (!existing) {
         await db.insert(blacklist).values({
           userName,
-          reason: `Авто-блок: ${project.userWantsCount} проектов, ${project.userHiredPercent}% найма`,
+          reason: `Авто-блок: ${clientVerdict.reason}`,
           autoBlocked: true,
           blockCount: 1,
         });
@@ -103,7 +104,14 @@ export async function analyzeOneProject(
       }
     }
 
-    throw new Error(`Auto-blocked spammer: ${userName} (${project.userWantsCount} projects, ${project.userHiredPercent}% hired)`);
+    throw new Error(`Auto-blocked: ${userName} (${clientVerdict.reason})`);
+  }
+
+  if (clientVerdict.action === "skip") {
+    await db.update(projects)
+      .set({ status: "skipped", skipReason: clientVerdict.reason, updatedAt: new Date() })
+      .where(eq(projects.id, project.id));
+    throw new Error(`Skipped by client-scoring: ${clientVerdict.reason}`);
   }
 
   const result = await analyzeProject(

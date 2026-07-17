@@ -79,22 +79,20 @@ export default function ProjectCard({ project: p, onSelect, onStatusChange, onSu
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 text-[var(--muted)] hover:text-green-400 transition-colors text-xs"
-              title={`Открыть на ${p.platform === "fl" ? "FL.ru" : p.platform === "weblancer" ? "Weblancer" : p.platform === "telegram" ? "Telegram" : "Kwork"}`}
+              title={`Открыть на ${p.platform === "weblancer" ? "Weblancer" : p.platform === "telegram" ? "Telegram" : "Kwork"}`}
             >
               🔗
             </a>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1 text-sm text-[var(--muted)]">
             <span className={`px-2 py-0.5 text-xs rounded ${
-              p.platform === "fl"
-                ? "bg-blue-400/10 text-blue-400 border border-blue-400/20"
-                : p.platform === "weblancer"
+              p.platform === "weblancer"
                 ? "bg-orange-400/10 text-orange-400 border border-orange-400/20"
                 : p.platform === "telegram"
                 ? "bg-sky-400/10 text-sky-400 border border-sky-400/20"
                 : "bg-green-400/10 text-green-400 border border-green-400/20"
             }`}>
-              {p.platform === "fl" ? "FL.ru" : p.platform === "weblancer" ? "Weblancer" : p.platform === "telegram" ? "Telegram" : "Kwork"}
+              {p.platform === "weblancer" ? "Weblancer" : p.platform === "telegram" ? "Telegram" : "Kwork"}
             </span>
             {p.priceLimit && <span>💰 {p.priceLimit} ₽</span>}
             {p.maxDays && <span>⏱ {p.maxDays} дн.</span>}

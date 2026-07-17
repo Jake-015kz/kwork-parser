@@ -10,7 +10,7 @@ const TELEGRAM_PATTERNS = [
   /(?:телеграм|telegram|tg)[\s:]*@?([\w]{3,})/gi,
 ];
 
-const EMAIL_PATTERN = /[\w.+-]+@[\w.-]+\.\w{2,}/gi;
+const EMAIL_PATTERN = /[a-zа-я0-9._%+-]+@[a-zа-я0-9.-]+\.[a-zа-я]{2,}/gi;
 
 const WHATSAPP_PATTERNS = [
   /(?:whatsapp|wa\.me|ватсап|ватсапп)[\s:]*(?:\+?\d[\d\s\-()]{6,})/gi,

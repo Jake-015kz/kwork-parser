@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { requireAdminToken } from "@/lib/auth";
 
 const MIGRATION_STATEMENTS = [
   `ALTER TABLE projects ADD COLUMN IF NOT EXISTS "platform" varchar(20) DEFAULT 'kwork' NOT NULL`,
@@ -10,7 +11,10 @@ const MIGRATION_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "platform_id_idx" ON "projects" ("platform_id")`,
 ];
 
-export async function POST() {
+export async function POST(req: Request) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const results: string[] = [];
   for (const stmt of MIGRATION_STATEMENTS) {
     try {

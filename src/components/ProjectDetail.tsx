@@ -108,7 +108,7 @@ export default function ProjectDetail({ detail, onBack, onAnalyze, onGenerateRes
             rel="noopener noreferrer"
             className="px-4 py-2 bg-[var(--card)] border border-[var(--border)] text-[var(--muted)] rounded-lg hover:text-[var(--foreground)] transition-colors text-sm inline-flex items-center whitespace-nowrap"
           >
-            🔗 {detail.platform === "fl" ? "На FL.ru" : detail.platform === "weblancer" ? "На Weblancer" : detail.platform === "telegram" ? "В Telegram" : "На Kwork"}
+            🔗 {detail.platform === "weblancer" ? "На Weblancer" : detail.platform === "telegram" ? "В Telegram" : "На Kwork"}
           </a>
           <button
             onClick={onAnalyze}

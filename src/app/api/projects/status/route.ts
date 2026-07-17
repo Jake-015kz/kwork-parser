@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdminToken } from "@/lib/auth";
 
 const VALID_STATUSES = ["new", "analyzed", "responded", "skipped", "error", "pending", "failed"];
 
 export async function PATCH(req: NextRequest) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const { id, status, skipReason } = await req.json();
 
   if (!id || typeof id !== "number") {

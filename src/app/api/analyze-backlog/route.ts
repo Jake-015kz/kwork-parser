@@ -3,11 +3,15 @@ import { db } from "@/lib/db";
 import { projects } from "@/db/schema";
 import { inArray, asc, eq } from "drizzle-orm";
 import { analyzeOneProject } from "@/lib/analyzeOne";
+import { requireCronSecret } from "@/lib/auth";
 
 const BATCH_SIZE = 5;
 const DELAY_MS = 2000;
 
-export async function POST() {
+export async function POST(req: Request) {
+  const authError = requireCronSecret(req);
+  if (authError) return authError;
+
   try {
     const backlog = await db
       .select()

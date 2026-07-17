@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
 import { insertProjects } from "@/lib/insertProjects";
+import { requireCronSecret } from "@/lib/auth";
 import type { ParsedProject } from "@/lib/project-types";
 
-export const maxDuration = 30;
+// maxDuration берётся из vercel.json (300s) — не переопределяем здесь,
+// иначе долгий парсинг обрывается на 30s.
 
-export async function GET() {
-  return handleCron();
+export async function GET(req: Request) {
+  return handleCron(req);
 }
 
-export async function POST() {
-  return handleCron();
+export async function POST(req: Request) {
+  return handleCron(req);
 }
 
-async function handleCron() {
+async function handleCron(req: Request) {
+  const authError = requireCronSecret(req);
+  if (authError) return authError;
+
   try {
     const { fetchAllCategoriesProjects } = await import("@/lib/parser");
     const { fetchWeblancerProjects } = await import("@/lib/parser-weblancer");

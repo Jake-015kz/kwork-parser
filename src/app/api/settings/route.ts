@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdminToken } from "@/lib/auth";
 
 async function getSetting(key: string): Promise<string | null> {
   const [s] = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
@@ -29,6 +30,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const body = await req.json();
 
   const ops: Promise<void>[] = [];

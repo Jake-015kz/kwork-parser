@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, analyses, responses } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { requireAdminToken } from "@/lib/auth";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -68,6 +69,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const body = await req.json();
   const { projectId, content, status: newStatus } = body;
 
@@ -107,6 +111,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const body = await req.json();
   const { id, status: newStatus, kworkOfferId, rejectReason } = body;
 

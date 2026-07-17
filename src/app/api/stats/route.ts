@@ -30,7 +30,7 @@ export async function GET() {
   const [contactRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(projects)
-    .where(sql`${projects.description} ~* '@|t\\.me|email|whatsapp|ватсап|\\+7|8\\s*\\(?'`);
+    .where(sql`${projects.description} ~* '@[\wа-я]{3,}|t\.me/|[\w.+-]+@[\w.-]+\.[\w]{2,}|whatsapp|ва?тсап|(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}'`);
 
   // Conversion stats
   const [submittedRows] = await db

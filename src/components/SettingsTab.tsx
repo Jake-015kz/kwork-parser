@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { authedFetch, getAdminToken, setAdminToken } from "@/lib/utils";
 
 interface BlacklistItem {
   id: number;
@@ -27,7 +28,7 @@ export default function SettingsTab() {
   const [blItems, setBlItems] = useState<BlacklistItem[]>([]);
   const [newUserName, setNewUserName] = useState("");
   const [newReason, setNewReason] = useState("");
-
+  const [adminToken, setAdminTokenState] = useState(() => getAdminToken());
   const fetchBlacklist = async () => {
     const res = await fetch("/api/blacklist");
     const d = await res.json();
@@ -53,7 +54,7 @@ export default function SettingsTab() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch("/api/settings", {
+      const res = await authedFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chatId, minBudget }),
@@ -69,7 +70,7 @@ export default function SettingsTab() {
   const addToBlacklist = async () => {
     if (!newUserName.trim()) return;
     try {
-      const res = await fetch("/api/blacklist", {
+      const res = await authedFetch("/api/blacklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userName: newUserName.trim(), reason: newReason.trim() }),
@@ -85,7 +86,7 @@ export default function SettingsTab() {
 
   const removeFromBlacklist = async (id: number) => {
     try {
-      const res = await fetch("/api/blacklist", {
+      const res = await authedFetch("/api/blacklist", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
@@ -124,6 +125,26 @@ export default function SettingsTab() {
             {saved ? "✅ Сохранено" : "💾 Сохранить"}
           </button>
         </div>
+      </div>
+
+      <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+        <h2 className="text-lg font-semibold mb-3">🔐 Admin-токен</h2>
+        <p className="text-sm text-[var(--muted)] mb-2">
+          Нужен для сохранения настроек и управления чёрным списком. Совпадает с переменной ADMIN_TOKEN на Vercel. Хранится только в этом браузере (localStorage).
+        </p>
+        <input
+          type="password"
+          value={adminToken}
+          onChange={(e) => setAdminTokenState(e.target.value)}
+          placeholder="ADMIN_TOKEN"
+          className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm focus:outline-none focus:border-[var(--accent)]"
+        />
+        <button
+          onClick={() => { setAdminToken(adminToken); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
+          className="mt-2 px-4 py-2 bg-[var(--accent)] text-black font-medium rounded-lg hover:bg-[var(--accent-hover)] transition-colors text-sm"
+        >
+          {saved ? "✅ Токен сохранён" : "💾 Сохранить токен"}
+        </button>
       </div>
 
       <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">

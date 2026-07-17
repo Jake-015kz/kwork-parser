@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["grammy", "openai", "@neondatabase/serverless"],
+  serverExternalPackages: ["grammy", "@neondatabase/serverless"],
 };
 
 export default nextConfig;

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { requireAdminToken } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const authError = requireAdminToken(req);
+  if (authError) return authError;
+
   const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const WEBHOOK_URL = process.env.WEBHOOK_URL;
 

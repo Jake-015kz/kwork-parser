@@ -80,7 +80,6 @@ export default function ProjectFilters({
           >
             <option value="all">Все платформы</option>
             <option value="kwork">Kwork</option>
-            <option value="fl">FL.ru</option>
             <option value="weblancer">Weblancer</option>
             <option value="telegram">Telegram</option>
           </select>

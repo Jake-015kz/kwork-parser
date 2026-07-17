@@ -120,14 +120,13 @@ if (bot) {
     if (row?.responseText) {
       await ctx.answerCallbackQuery({ text: "📤 Отклик готов" });
       const projectUrl = buildProjectUrl(row.url, row.platform, row.kworkId);
-      const platformLabel = row.platform === "fl" ? "FL.ru" : "Kwork";
       await ctx.reply(
         `<b>📤 Отклик для "${row.name}"</b>\n\n<code>${row.responseText}</code>`,
         {
           parse_mode: "HTML",
           reply_markup: {
             inline_keyboard: [
-              [{ text: `✍️ Откликнуться на ${platformLabel}`, url: projectUrl }],
+              [{ text: `✍️ Откликнуться на Kwork`, url: projectUrl }],
             ],
           },
           link_preview_options: { is_disabled: true },
@@ -166,7 +165,6 @@ export async function sendProjectNotification(
   const costStr = responseCost ? `\n💰 Отклик: ${responseCost}` : "";
   const timelineStr = responseTimeline ? ` | ⏱ ${responseTimeline}` : "";
   const projectUrl = buildProjectUrl(url, platform || "kwork", kworkId);
-  const platformLabel = platform === "fl" ? "FL.ru" : "Kwork";
 
   const text = `🆕 Новый проект: "${name}"\n`
     + `💰 ${priceStr} | ⏱ ${daysStr}\n`
@@ -184,7 +182,7 @@ export async function sendProjectNotification(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: `👁 На ${platformLabel}`, url: projectUrl },
+            { text: `👁 На Kwork`, url: projectUrl },
             { text: "📊 Детали", url: `${SITE_URL}/projects/${projectId}` },
           ],
           [

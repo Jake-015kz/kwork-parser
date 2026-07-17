@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       conditions.push(lte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(maxBudget)) as ReturnType<typeof eq>);
     }
     if (hasContact === "true") {
-      conditions.push(sql`${projects.description} ~* '@|t\\.me|email|whatsapp|ватсап|\\+7|8\\s*\\(?'` as ReturnType<typeof eq>);
+      conditions.push(sql`${projects.description} ~* '@[\wа-я]{3,}|t\.me/|[\w.+-]+@[\w.-]+\.[\w]{2,}|whatsapp|ва?тсап|(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}'` as ReturnType<typeof eq>);
     }
 
     // Subquery to get latest analysis per project using DISTINCT ON (PostgreSQL)
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
           skipReason: projects.skipReason,
           url: projects.url,
           createdAt: projects.createdAt,
-          hasContact: sql<boolean>`CASE WHEN ${projects.description} ~* '@|t\\.me|email|whatsapp|ватсап|\\+7|8\\s*\\(?' THEN true ELSE false END`,
+          hasContact: sql<boolean>`CASE WHEN ${projects.description} ~* '@[\wа-я]{3,}|t\.me/|[\w.+-]+@[\w.-]+\.[\w]{2,}|whatsapp|ва?тсап|(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}' THEN true ELSE false END`,
           analysis: {
             verdict: latestAnalysis.verdict,
             score: latestAnalysis.score,

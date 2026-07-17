@@ -2,7 +2,7 @@
 
 # 🔍 FreelancePulse
 
-**Парсер проектов с Kwork.ru и FL.ru с ИИ-анализом и Telegram уведомлениями**
+**Парсер проектов с Kwork.ru с ИИ-анализом и Telegram уведомлениями**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
@@ -18,14 +18,14 @@
 
 ## 📋 Описание
 
-FreelancePulse — это автоматизированная система мониторинга фриланс-проектов с Kwork.ru и FL.ru. Проект собирает заказы по заданным категориям, анализирует через ИИ (Groq API), фильтрует неподходящие и отправляет готовые отклики в Telegram.
+FreelancePulse — это автоматизированная система мониторинга фриланс-проектов с Kwork.ru. Проект собирает заказы по заданным категориям, анализирует через ИИ (Groq API), фильтрует неподходящие и отправляет готовые отклики в Telegram.
 
 ### Возможности
 
 - 🤖 **ИИ-анализ проектов** — автоматическая оценка проектов и генерация откликов
 - 📊 **Дашборд** — визуализация статистики с графиками Recharts
 - 📱 **Telegram бот** — уведомления с кнопками для управления откликами
-- 🔍 **Мультиплатформенность** — поддержка Kwork.ru и FL.ru
+- 🔍 **Мультиплатформенность** — поддержка Kwork.ru, Weblancer, Telegram
 - ⚡ **Умная фильтрация** — исключение спама, черного списка, неподходящих категорий
 - 📈 **Аналитика** — статистика по проектам, откликам, вердиктам
 
@@ -44,14 +44,13 @@ FreelancePulse — это автоматизированная система м
 │  └── Settings Tab (настройки)                               │
 ├─────────────────────────────────────────────────────────────┤
 │  Backend (Next.js API Routes)                               │
-│  ├── /api/cron — парсинг Kwork + FL.ru                     │
-│  ├── /api/fl-rss — парсинг FL.ru RSS                       │
+│  ├── /api/cron — парсинг Kwork (+ Weblancer, Telegram)        │
 │  ├── /api/analyze — ИИ-анализ проектов                     │
 │  ├── /api/telegram/webhook — обработка команд бота         │
 │  └── /api/projects — CRUD проектов                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Services                                                   │
-│  ├── Parser (Kwork HTML + FL.ru RSS)                        │
+│  ├── Parser (Kwork HTML + Weblancer + Telegram)               │
 │  ├── AI Analyzer (Groq API, qwen/qwen3-32b)                │
 │  ├── Telegram Bot (Grammy)                                  │
 │  └── Database (Drizzle ORM + PostgreSQL)                    │
@@ -135,12 +134,8 @@ npm run dev
 ### API эндпоинты
 
 ```bash
-# Парсинг проектов (Kwork + FL.ru)
+# Парсинг проектов (Kwork + Weblancer + Telegram)
 curl https://parserkwork.vercel.app/api/cron
-
-# Парсинг только FL.ru (RSS)
-curl -X POST https://parserkwork.vercel.app/api/fl-rss
-
 # Получение проектов
 curl "https://parserkwork.vercel.app/api/projects?limit=10&status=worth"
 
@@ -166,8 +161,7 @@ npm run db:studio    # Drizzle Studio (GUI для БД)
 src/
 ├── app/
 │   ├── api/
-│   │   ├── cron/route.ts          # Парсинг по расписанию
-│   │   ├── fl-rss/route.ts        # Парсинг FL.ru RSS
+│   │   ├── cron/route.ts          # Парсинг по расписанию (Kwork + Weblancer + Telegram)
 │   │   ├── projects/route.ts      # CRUD проектов
 │   │   ├── projects/[id]/route.ts  # Детали проекта
 │   │   ├── telegram/webhook/route.ts  # Telegram webhook
@@ -184,7 +178,6 @@ src/
 │   ├── analyzeOne.ts              # Анализ одного проекта
 │   ├── db.ts                      # Подключение к БД
 │   ├── parser.ts                  # Парсер Kwork.ru
-│   ├── parser-fl-rss.ts           # Парсер FL.ru (RSS)
 │   ├── prompt.ts                  # Промпты для ИИ
 │   ├── runParse.ts                # Оркестратор парсинга
 │   ├── telegram.ts                # Telegram уведомления
@@ -200,13 +193,14 @@ src/
 ### 1. Парсинг проектов
 
 - **Kwork.ru** — HTML парсинг по категориям (программирование, сайты, мобильные)
-- **FL.ru** — RSS лента с фильтрацией по категориям
+- **Weblancer** — HTML парсинг
+- **Telegram** — посты с проектами
 
 ### 2. Фильтрация
 
 - ✅ Исключение по ключевым словам (黑名单)
 - ✅ Фильтрация по категориям
-- ✅ Проверка на спам (0% найма, много проектов)
+- ✅ Проверка на спам (блок: >10 заказов и 0% найма; skip по скорингу риска)
 - ✅ Минимальный бюджет
 
 ### 3. ИИ-анализ
@@ -236,16 +230,6 @@ src/
 | 40 | Игры |
 | 41 | Скрипты и боты |
 | 79 | Вёрстка |
-
-### Категории FL.ru
-
-| Kwork ID | FL.ru категория |
-|----------|-----------------|
-| 37 | Сайты (Bitrix24, Joomla, WordPress) |
-| 38 | Программирование |
-| 39 | Автоматизация бизнеса |
-| 40 | Игры |
-| 79 | Mobile |
 
 ---
 

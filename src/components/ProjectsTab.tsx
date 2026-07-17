@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { buildProjectUrl } from "@/lib/utils";
+import { buildProjectUrl, authedFetch } from "@/lib/utils";
 import ProjectFilters, { STATUS_FILTERS } from "./ProjectFilters";
 import ProjectCard from "./ProjectCard";
 import ProjectDetail from "./ProjectDetail";
@@ -94,7 +94,7 @@ export default function ProjectsTab() {
   }, [filter, search, minBudget, maxBudget, platform, hasContact, offset]);
 
   const handleStatusChange = async (id: number, status: string) => {
-    await fetch("/api/projects/status", {
+    await authedFetch("/api/projects/status", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
@@ -140,7 +140,7 @@ export default function ProjectsTab() {
   const handleGenerateResponse = async (projectId: number) => {
     setGeneratingId(projectId);
     try {
-      const res = await fetch("/api/generate-response", {
+      const res = await authedFetch("/api/generate-response", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
@@ -179,7 +179,7 @@ export default function ProjectsTab() {
     setGeneratingAB(true);
     setAbResult(null);
     try {
-      const res = await fetch("/api/generate-response", {
+      const res = await authedFetch("/api/generate-response", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, variant: "both" }),
@@ -233,7 +233,7 @@ export default function ProjectsTab() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         toast.success("Отклик скопирован в буфер обмена");
-        if (platform === "fl" && url) window.open(url, "_blank");
+        if (platform === "weblancer" && url) window.open(url, "_blank");
         else window.open(buildProjectUrl(url, platform || "kwork", kworkId), "_blank");
       } else {
         toast.error("Текст отклика пуст. Попробуйте сгенерировать заново");

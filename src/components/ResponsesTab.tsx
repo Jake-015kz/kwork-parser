@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buildProjectUrl } from "@/lib/utils";
+import { buildProjectUrl, authedFetch } from "@/lib/utils";
 
 interface ResponseItem {
   id: number;
@@ -89,7 +89,7 @@ export default function ResponsesTab() {
   };
 
   const updateStatus = async (id: number, status: string) => {
-    await fetch("/api/responses", {
+    await authedFetch("/api/responses", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
