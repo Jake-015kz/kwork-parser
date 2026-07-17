@@ -50,7 +50,6 @@ export const responses = pgTable("responses", {
    id: serial("id").primaryKey(),
    projectId: integer("project_id").references(() => projects.id).notNull(),
   content: text("content").notNull(),
-  variant: varchar("variant", { length: 10 }).default("a"),
   status: varchar("status", { length: 20 }).notNull().default("queued"),
   kworkOfferId: varchar("kwork_offer_id", { length: 100 }),
   sent: boolean("sent").notNull().default(false),
