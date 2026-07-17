@@ -5,6 +5,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { CONTACT_REGEX } from "@/lib/contacts-regex";
 
 export async function GET() {
+ try {
   const [totalRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(projects);
@@ -82,4 +83,11 @@ export async function GET() {
     },
     logs: logData,
   });
+ } catch (error: any) {
+  console.error("stats error:", error);
+  return NextResponse.json(
+    { error: "Internal server error", v: "s3", detail: error?.message || String(error), regex: CONTACT_REGEX },
+    { status: 500 }
+  );
+ }
 }
