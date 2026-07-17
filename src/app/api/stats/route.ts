@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, analyses, syncLogs, responses } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import { CONTACT_REGEX } from "@/lib/contacts-regex";
 
 export async function GET() {
- try {
   const [totalRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(projects);
@@ -31,7 +31,7 @@ export async function GET() {
   const [contactRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(projects)
-    .where(sql`${projects.description} ~* '@[\wа-я]{3,}|t\.me/|[\w.+-]+@[\w.-]+\.[\w]{2,}|whatsapp|ва?тсап|(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}'`);
+    .where(sql`${projects.description} ~* ${CONTACT_REGEX}`);
 
   // Conversion stats
   const [submittedRows] = await db
@@ -82,11 +82,4 @@ export async function GET() {
     },
     logs: logData,
   });
- } catch (error: any) {
-  console.error("Failed to fetch stats:", error);
-  return NextResponse.json(
-    { error: "Internal server error", v: "s2", detail: error?.message || String(error), stack: (error?.stack || "").split("\n").slice(0, 10) },
-    { status: 500 }
-  );
- }
 }

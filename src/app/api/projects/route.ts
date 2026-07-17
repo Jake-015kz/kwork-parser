@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, analyses } from "@/db/schema";
 import { eq, desc, sql, and, or, ilike, gte, lte } from "drizzle-orm";
+import { CONTACT_REGEX } from "@/lib/contacts-regex";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
       conditions.push(lte(sql`CAST(NULLIF(${projects.priceLimit}, '') AS NUMERIC)`, parseFloat(maxBudget)) as ReturnType<typeof eq>);
     }
     if (hasContact === "true") {
-      conditions.push(sql`${projects.description} ~* '@[\wа-я]{3,}|t\.me/|[\w.+-]+@[\w.-]+\.[\w]{2,}|whatsapp|ва?тсап|(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}'` as ReturnType<typeof eq>);
+      conditions.push(sql`${projects.description} ~* ${CONTACT_REGEX}` as ReturnType<typeof eq>);
     }
 
     // Subquery to get latest analysis per project using DISTINCT ON (PostgreSQL)
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
           skipReason: projects.skipReason,
           url: projects.url,
           createdAt: projects.createdAt,
-          hasContact: sql<boolean>`CASE WHEN ${projects.description} ~* '@[\wа-я]{3,}|t\.me/|[\w.+-]+@[\w.-]+\.[\w]{2,}|whatsapp|ва?тсап|(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}' THEN true ELSE false END`,
+          hasContact: sql<boolean>`CASE WHEN ${projects.description} ~* ${CONTACT_REGEX} THEN true ELSE false END`,
           analysis: {
             verdict: latestAnalysis.verdict,
             score: latestAnalysis.score,
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("Failed to fetch projects:", error);
     return NextResponse.json(
-      { error: "Internal server error", v: "p2", detail: error?.message || String(error), stack: (error?.stack || "").split("\n").slice(0, 10) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
