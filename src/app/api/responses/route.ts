@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { requireAdminToken } from "@/lib/auth";
 
 export async function GET(req: Request) {
+ try {
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("projectId");
   const status = searchParams.get("status");
@@ -66,6 +67,13 @@ export async function GET(req: Request) {
     .orderBy(desc(responses.createdAt));
 
   return NextResponse.json({ items });
+ } catch (error: any) {
+  console.error("responses error:", error);
+  return NextResponse.json(
+    { error: "Internal server error", v: "r6", detail: error?.message || String(error), stack: (error?.stack || "").split("\n").slice(0, 8) },
+    { status: 500 }
+  );
+ }
 }
 
 export async function POST(req: Request) {

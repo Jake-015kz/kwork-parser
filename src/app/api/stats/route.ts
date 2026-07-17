@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, analyses, syncLogs, responses } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, isNotNull } from "drizzle-orm";
 import { CONTACT_REGEX } from "@/lib/contacts-regex";
 
 export async function GET() {
- try {
   const [totalRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(projects);
@@ -38,22 +37,22 @@ export async function GET() {
   const [submittedRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(responses)
-    .where(sql`${responses.sent} = true`);
+    .where(eq(responses.sent, true));
 
   const [viewedRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(responses)
-    .where(sql`${responses.viewedAt} IS NOT NULL`);
+    .where(isNotNull(responses.viewedAt));
 
   const [conversionRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(responses)
-    .where(sql`${responses.respondedAt} IS NOT NULL`);
+    .where(isNotNull(responses.respondedAt));
 
   const [rejectedRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(responses)
-    .where(sql`${responses.rejectedAt} IS NOT NULL`);
+    .where(isNotNull(responses.rejectedAt));
 
   const submittedCount = Number(submittedRows.value);
   const conversionCount = Number(conversionRows.value);
@@ -83,11 +82,4 @@ export async function GET() {
     },
     logs: logData,
   });
- } catch (error: any) {
-  console.error("stats error:", error);
-  return NextResponse.json(
-    { error: "Internal server error", v: "s3", detail: error?.message || String(error), regex: CONTACT_REGEX },
-    { status: 500 }
-  );
- }
 }
