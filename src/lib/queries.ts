@@ -274,6 +274,54 @@ export async function getResponses(status?: string): Promise<ResponseRow[]> {
     .orderBy(desc(responses.createdAt));
 }
 
+export type ResponseStatusTransition =
+  | "queued"
+  | "submitted"
+  | "viewed"
+  | "responded"
+  | "rejected";
+
+/**
+ * Единая точка применения перехода статуса отклика.
+ * Заполняет соответствующие временные метки (sentAt/viewedAt/respondedAt/rejectedAt)
+ * и при необходимости kworkOfferId / rejectReason. Убирает дублирование логики
+ * между responses/route.ts PATCH и фронтендом.
+ */
+export async function applyResponseStatusTransition(
+  id: number,
+  newStatus: ResponseStatusTransition,
+  extra?: { kworkOfferId?: string; rejectReason?: string },
+): Promise<void> {
+  const now = new Date();
+  const updateData: Record<string, unknown> = { status: newStatus };
+
+  switch (newStatus) {
+    case "submitted":
+      updateData.sent = true;
+      updateData.sentAt = now;
+      break;
+    case "viewed":
+      updateData.viewedAt = now;
+      break;
+    case "responded":
+      updateData.respondedAt = now;
+      break;
+    case "rejected":
+      updateData.rejectedAt = now;
+      updateData.rejectReason = extra?.rejectReason ?? null;
+      break;
+    case "queued":
+    default:
+      break;
+  }
+
+  if (extra?.kworkOfferId) {
+    updateData.kworkOfferId = extra.kworkOfferId;
+  }
+
+  await db.update(responses).set(updateData).where(eq(responses.id, id));
+}
+
 export async function getResponseForProject(projectId: number): Promise<{
   projectId: number;
   kworkId: number;
@@ -317,13 +365,13 @@ export async function getProjectDetail(projectId: number): Promise<{
   analyses: typeof analyses.$inferSelect[];
   responses: typeof responses.$inferSelect[];
 } | null> {
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project) return null;
-
-  const [analysisList, responseList] = await Promise.all([
+  const [project, analysisList, responseList] = await Promise.all([
+    db.select().from(projects).where(eq(projects.id, projectId)).limit(1),
     db.select().from(analyses).where(eq(analyses.projectId, projectId)),
     db.select().from(responses).where(eq(responses.projectId, projectId)),
   ]);
 
-  return { project, analyses: analysisList, responses: responseList };
+  if (!project[0]) return null;
+
+  return { project: project[0], analyses: analysisList, responses: responseList };
 }

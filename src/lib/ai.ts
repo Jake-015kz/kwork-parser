@@ -1,4 +1,6 @@
 import { SYSTEM_PROMPT_BASE, getCategoryName, getCategoryStyle } from "./prompt";
+import { db } from "./db";
+import { analyses } from "@/db/schema";
 
 const API_KEY = process.env.GROQ_API_KEY;
 const MODEL = process.env.AI_MODEL || "qwen/qwen3-32b";
@@ -336,4 +338,25 @@ export async function generateTwoResponses(
       responseTimeline: extractTimeline(b, maxDays),
     },
   };
+}
+
+/**
+ * Сохраняет сгенерированный отклик в таблицу analyses (verdict="generated").
+ * Вынесено из generate-response/route.ts, чтобы не дублировать insert-логику
+ * для веток single/both.
+ */
+export async function saveGeneratedResponse(
+  projectId: number,
+  result: GenerateResponseResult,
+): Promise<void> {
+  await db.insert(analyses).values({
+    projectId,
+    verdict: "generated",
+    score: 0,
+    reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
+    responseText: result.responseText,
+    responseCost: result.responseCost,
+    responseTimeline: result.responseTimeline,
+    modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
+  });
 }

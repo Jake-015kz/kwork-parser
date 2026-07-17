@@ -3,7 +3,13 @@ import { db } from "@/lib/db";
 import { responses } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminToken } from "@/lib/auth";
-import { getResponses, getResponseForProject } from "@/lib/queries";
+import {
+  getResponses,
+  getResponseForProject,
+  applyResponseStatusTransition,
+} from "@/lib/queries";
+import { parseBody, responsePostSchema, responsePatchSchema } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +34,7 @@ export async function GET(req: Request) {
     const items = await getResponses(status);
     return NextResponse.json({ items });
   } catch (error) {
-    console.error("Failed to fetch responses:", error);
+    logger.error("responses:GET", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -37,74 +43,62 @@ export async function POST(req: Request) {
   const authError = requireAdminToken(req);
   if (authError) return authError;
 
-  const body = await req.json();
-  const { projectId, content, status: newStatus } = body;
+  const parsed = await parseBody(req, responsePostSchema);
+  if (!parsed.ok) return parsed.error;
 
-  if (!projectId || !content) {
-    return NextResponse.json({ error: "projectId and content required" }, { status: 400 });
-  }
+  const { projectId, content, status: newStatus } = parsed.data;
 
-  const [existing] = await db
-    .select()
-    .from(responses)
-    .where(eq(responses.projectId, projectId))
-    .limit(1);
+  try {
+    const [existing] = await db
+      .select()
+      .from(responses)
+      .where(eq(responses.projectId, projectId))
+      .limit(1);
 
-  if (existing) {
-    await db
-      .update(responses)
-      .set({
+    if (existing) {
+      await db
+        .update(responses)
+        .set({
+          content,
+          status: newStatus || "queued",
+          sent: false,
+          sentAt: null,
+          viewedAt: null,
+          respondedAt: null,
+          rejectedAt: null,
+          rejectReason: null,
+        })
+        .where(eq(responses.id, existing.id));
+    } else {
+      await db.insert(responses).values({
+        projectId,
         content,
         status: newStatus || "queued",
         sent: false,
-        sentAt: null,
-        viewedAt: null,
-        respondedAt: null,
-        rejectedAt: null,
-        rejectReason: null,
-      })
-      .where(eq(responses.id, existing.id));
-  } else {
-    await db.insert(responses).values({
-      projectId,
-      content,
-      status: newStatus || "queued",
-      sent: false,
-    });
-  }
+      });
+    }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    logger.error("responses:POST", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: Request) {
   const authError = requireAdminToken(req);
   if (authError) return authError;
 
-  const body = await req.json();
-  const { id, status: newStatus, kworkOfferId, rejectReason } = body;
+  const parsed = await parseBody(req, responsePatchSchema);
+  if (!parsed.ok) return parsed.error;
 
-  if (!id || !newStatus) {
-    return NextResponse.json({ error: "id and status required" }, { status: 400 });
+  const { id, status: newStatus, kworkOfferId, rejectReason } = parsed.data;
+
+  try {
+    await applyResponseStatusTransition(id, newStatus, { kworkOfferId, rejectReason });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    logger.error("responses:PATCH", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const updateData: Record<string, unknown> = { status: newStatus };
-
-  if (newStatus === "submitted") {
-    updateData.sent = true;
-    updateData.sentAt = new Date();
-  } else if (newStatus === "viewed") {
-    updateData.viewedAt = new Date();
-  } else if (newStatus === "responded") {
-    updateData.respondedAt = new Date();
-  } else if (newStatus === "rejected") {
-    updateData.rejectedAt = new Date();
-    updateData.rejectReason = rejectReason || null;
-  }
-
-  if (kworkOfferId) {
-    updateData.kworkOfferId = kworkOfferId;
-  }
-
-  await db.update(responses).set(updateData).where(eq(responses.id, id));
-  return NextResponse.json({ ok: true });
 }

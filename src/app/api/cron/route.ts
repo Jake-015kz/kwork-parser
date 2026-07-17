@@ -3,8 +3,9 @@ import { insertProjects } from "@/lib/insertProjects";
 import { requireCronSecret } from "@/lib/auth";
 import type { ParsedProject } from "@/lib/project-types";
 
-// maxDuration берётся из vercel.json (300s) — не переопределяем здесь,
-// иначе долгий парсинг обрывается на 30s.
+// Для App Router источник истины по длительности — export const maxDuration,
+// vercel.json functions.maxDuration на отдельные роуты не всегда применяется.
+export const maxDuration = 300;
 
 export async function GET(req: Request) {
   return handleCron(req);

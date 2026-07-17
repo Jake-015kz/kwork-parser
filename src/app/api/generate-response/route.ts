@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { projects, analyses } from "@/db/schema";
+import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateResponse, generateTwoResponses } from "@/lib/ai";
+import { generateResponse, generateTwoResponses, saveGeneratedResponse } from "@/lib/ai";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,27 +32,9 @@ export async function POST(req: NextRequest) {
       );
 
       // Сохраняем оба варианта для A/B-сравнения
-      await db.insert(analyses).values([
-        {
-          projectId: project.id,
-          verdict: "generated",
-          score: 0,
-          reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
-          responseText: result.variantA.responseText,
-          responseCost: result.variantA.responseCost,
-          responseTimeline: result.variantA.responseTimeline,
-          modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
-        },
-        {
-          projectId: project.id,
-          verdict: "generated",
-          score: 0,
-          reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
-          responseText: result.variantB.responseText,
-          responseCost: result.variantB.responseCost,
-          responseTimeline: result.variantB.responseTimeline,
-          modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
-        },
+      await Promise.all([
+        saveGeneratedResponse(project.id, result.variantA),
+        saveGeneratedResponse(project.id, result.variantB),
       ]);
 
       return NextResponse.json({
@@ -67,16 +50,7 @@ export async function POST(req: NextRequest) {
       project.maxDays,
     );
 
-    await db.insert(analyses).values({
-      projectId: project.id,
-      verdict: "generated",
-      score: 0,
-      reasoning: { match: "", budget: "", timeline: "", client: "", risks: "" },
-      responseText: result.responseText,
-      responseCost: result.responseCost,
-      responseTimeline: result.responseTimeline,
-      modelUsed: process.env.AI_MODEL || "qwen/qwen3-32b",
-    });
+    await saveGeneratedResponse(project.id, result);
 
     return NextResponse.json({
       responseText: result.responseText,
@@ -84,7 +58,7 @@ export async function POST(req: NextRequest) {
       responseTimeline: result.responseTimeline,
     });
   } catch (error) {
-    console.error("Failed to generate response:", error);
+    logger.error("generate-response:POST", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

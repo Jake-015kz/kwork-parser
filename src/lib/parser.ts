@@ -47,8 +47,10 @@ interface StateData {
   };
 }
 
-const TARGET_CATEGORIES = new Set([37, 38, 39, 79, 41]);
 const BASE_URL = "https://kwork.ru/projects";
+
+const TARGET_CATEGORIES = new Set([37, 38, 39, 79, 41]);
+export { TARGET_CATEGORIES };
 
 function extractJsonObject(html: string, startPos: number): string | null {
   let pos = startPos;

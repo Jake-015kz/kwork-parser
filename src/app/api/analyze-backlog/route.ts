@@ -8,6 +8,8 @@ import { requireCronSecret } from "@/lib/auth";
 const BATCH_SIZE = 5;
 const DELAY_MS = 2000;
 
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
   const authError = requireCronSecret(req);
   if (authError) return authError;

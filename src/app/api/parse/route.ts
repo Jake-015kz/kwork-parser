@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { runParseAndAnalyze } from "@/lib/runParse";
 import { requireCronSecret } from "@/lib/auth";
 
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
   const authError = requireCronSecret(req);
   if (authError) return authError;

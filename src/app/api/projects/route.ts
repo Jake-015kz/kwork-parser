@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProjects, type ProjectFilters } from "@/lib/queries";
+import { logger } from "@/lib/logger";
 
-export const dynamic = "force-dynamic";
+// Кэшируем список проектов на 30с (ISR) — дашборд дёргает часто,
+// БД при этом разгружается. Данные остаются почти живыми.
+export const revalidate = 30;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -21,7 +24,7 @@ export async function GET(req: NextRequest) {
     const result = await getProjects(filters);
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Failed to fetch projects:", error);
+    logger.error("projects:GET", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
