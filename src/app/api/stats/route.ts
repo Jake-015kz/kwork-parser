@@ -4,6 +4,7 @@ import { projects, analyses, syncLogs, responses } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 
 export async function GET() {
+ try {
   const [totalRows] = await db
     .select({ value: sql<number>`count(*)` })
     .from(projects);
@@ -81,4 +82,11 @@ export async function GET() {
     },
     logs: logData,
   });
+ } catch (error: any) {
+  console.error("Failed to fetch stats:", error);
+  return NextResponse.json(
+    { error: "Internal server error", v: "s2", detail: error?.message || String(error), stack: (error?.stack || "").split("\n").slice(0, 10) },
+    { status: 500 }
+  );
+ }
 }

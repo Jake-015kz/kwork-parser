@@ -112,10 +112,10 @@ export async function GET(req: NextRequest) {
       limit,
       offset,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to fetch projects:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", v: "p2", detail: error?.message || String(error), stack: (error?.stack || "").split("\n").slice(0, 10) },
       { status: 500 }
     );
   }
