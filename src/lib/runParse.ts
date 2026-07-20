@@ -17,6 +17,7 @@ export interface ParseResult {
   analyzed: number;
   backlog: number;
   errors: string[];
+  perPlatform: { kwork: number; weblancer: number; freelancer: number };
 }
 
 function kworkToParsed(kp: KworkProject): ParsedProject {
@@ -76,6 +77,12 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     ...freelancerProjects,
   ];
 
+  const perPlatform = {
+    kwork: kworkProjects.length,
+    weblancer: weblancerProjects.length,
+    freelancer: freelancerProjects.length,
+  };
+
   const result = await insertProjects(allParsed);
   newCount = result.newCount;
   analyzedCount = result.analyzedCount;
@@ -111,7 +118,7 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     projectsFound: allParsed.length,
     projectsNew: newCount,
     projectsAnalyzed: analyzedCount,
-    message: errors.length > 0 ? errors.join("\n") : undefined,
+    message: `per-platform: ${JSON.stringify(perPlatform)}${errors.length > 0 ? "\n" + errors.join("\n") : ""}`,
   });
 
   return {
@@ -121,5 +128,6 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     analyzed: analyzedCount,
     backlog: backlogCount,
     errors,
+    perPlatform,
   };
 }
