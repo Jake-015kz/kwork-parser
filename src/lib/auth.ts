@@ -41,6 +41,9 @@ function adminTokenFromRequest(req: Request): string | undefined {
 }
 
 export function requireCronSecret(req: Request): NextResponse | null {
+  // Vercel Cron (нативный) присылает подписанный заголовок x-vercel-cron
+  if (req.headers.get("x-vercel-cron") === "1") return null;
+
   const expected = getCronSecret();
   if (!expected) return null; // не настроено → открыто (dev)
   const provided = cronSecretFromRequest(req);
