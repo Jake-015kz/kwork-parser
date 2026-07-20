@@ -26,7 +26,7 @@ async function handleCron(req: Request) {
     const allParsed: ParsedProject[] = [];
 
     const results = await Promise.allSettled([
-      fetchAllCategoriesProjects(3).then((p) =>
+      fetchAllCategoriesProjects(5).then((p) =>
         p.map((kp) => ({
           platformId: `kwork_${kp.id}`,
           platform: "kwork" as const,

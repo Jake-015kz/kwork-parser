@@ -49,8 +49,13 @@ interface StateData {
 
 const BASE_URL = "https://kwork.ru/projects";
 
+// Целевые категории Kwork (твоя специализация). Сейчас парсим КАЖДУЮ
+// отдельно по ссылке ?c=<id>&page=N — это даёт в разы больше релевантных
+// заказов, чем общая лента (где твоих категорий единицы на страницу).
 const TARGET_CATEGORIES = new Set([37, 38, 39, 79, 41]);
 export { TARGET_CATEGORIES };
+
+export const TARGET_CATEGORY_IDS = [37, 38, 39, 79, 41];
 
 function extractJsonObject(html: string, startPos: number): string | null {
   let pos = startPos;
@@ -108,8 +113,14 @@ export function extractPageData(html: string): PageData | null {
   }
 }
 
-export async function fetchProjectsPage(page: number = 1): Promise<PageData | null> {
-  const url = `${BASE_URL}?page=${page}`;
+export async function fetchProjectsPage(
+  page: number = 1,
+  categoryId?: number,
+): Promise<PageData | null> {
+  const params = new URLSearchParams();
+  if (categoryId) params.set("c", String(categoryId));
+  params.set("page", String(page));
+  const url = `${BASE_URL}?${params.toString()}`;
   const res = await fetch(url, {
     headers: {
       "User-Agent":
@@ -125,16 +136,23 @@ export async function fetchProjectsPage(page: number = 1): Promise<PageData | nu
   return extractPageData(html);
 }
 
-export async function fetchAllProjects(maxPages: number = 10): Promise<KworkProject[]> {
+/**
+ * Парсит ОДНУ категорию постранично. Возвращает ВСЕ проекты категории
+ * (без фильтра по TARGET_CATEGORIES — фильтруем на уровне агрегатора).
+ */
+export async function fetchProjectsByCategory(
+  categoryId: number,
+  maxPages: number = 10,
+): Promise<KworkProject[]> {
   const all: KworkProject[] = [];
   const seen = new Set<number>();
 
   for (let page = 1; page <= maxPages; page++) {
-    const data = await fetchProjectsPage(page);
+    const data = await fetchProjectsPage(page, categoryId);
     if (!data?.wantsListData?.wants) break;
 
     for (const want of data.wantsListData.wants) {
-      if (!seen.has(want.id) && TARGET_CATEGORIES.has(parseInt(want.category_id))) {
+      if (!seen.has(want.id)) {
         seen.add(want.id);
         all.push(want);
       }
@@ -151,6 +169,36 @@ export async function fetchAllProjects(maxPages: number = 10): Promise<KworkProj
   return all;
 }
 
+/**
+ * Охватывает ВСЕ целевые категории отдельно. Раньше парсилась только
+ * общая лента (kwork.ru/projects), где твоих категорий единицы на страницу.
+ * Теперь по каждой категории ?c=<id>&page=N — охват вырастает в разы.
+ */
+export async function fetchAllProjects(maxPages: number = 10): Promise<KworkProject[]> {
+  return fetchAllCategoriesProjects(maxPages);
+}
+
 export async function fetchAllCategoriesProjects(maxPages: number = 10): Promise<KworkProject[]> {
-  return fetchAllProjects(maxPages);
+  const all: KworkProject[] = [];
+  const seen = new Set<number>();
+
+  for (const catId of TARGET_CATEGORY_IDS) {
+    let projects: KworkProject[] = [];
+    try {
+      projects = await fetchProjectsByCategory(catId, maxPages);
+    } catch (err) {
+      // одна категория упала — не роняем весь прогон
+      console.error(`fetchProjectsByCategory(${catId}) failed:`, err);
+      continue;
+    }
+
+    for (const p of projects) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        all.push(p);
+      }
+    }
+  }
+
+  return all;
 }
