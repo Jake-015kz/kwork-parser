@@ -11,7 +11,6 @@ function platformLabel(platform?: string): string {
   switch (platform) {
     case "kwork": return "Kwork";
     case "weblancer": return "Weblancer";
-    case "flru": return "FL.ru";
     case "freelancer": return "Freelancer";
     default: return "сайте";
   }

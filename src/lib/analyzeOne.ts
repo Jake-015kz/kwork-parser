@@ -74,10 +74,10 @@ export async function analyzeOneProject(
   }
 
   if (project.categoryId === 0) {
-    // FL.ru / Freelancer: categoryId=0 значит не попал в целевые категории
+    // Freelancer: categoryId=0 значит не попал в целевые категории
     // (сайты/боты/парсеры/верстка). Пропускаем без анализа.
     await db.update(projects)
-      .set({ status: "skipped", skipReason: "Категория не в целевых (FL.ru/Freelancer)", updatedAt: new Date() })
+      .set({ status: "skipped", skipReason: "Категория не в целевых (Freelancer)", updatedAt: new Date() })
       .where(eq(projects.id, project.id));
     throw new Error(`Category not in targets (platform=${project.platform})`);
   }

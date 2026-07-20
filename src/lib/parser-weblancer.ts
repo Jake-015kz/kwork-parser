@@ -2,23 +2,32 @@ import type { ParsedProject } from "./project-types";
 
 const BASE_URL = "https://weblancer.net/freelance/";
 
-const TARGET_CATEGORIES: Record<string, number> = {
-  "programmirovanie": 38,
-  "sozdanie-saitov": 37,
-  "dorabotka-saitov": 37,
-  "parsing-dannikh": 41,
-  "sozdanie-botov": 41,
-  "integratsiya-api": 38,
-  "verstka-saitov": 79,
-};
+// Маппинг slug-категории Weblancer -> твои Kwork-категории (37/38/39/79/41).
+// Slug меняется (теперь "veb-programmirovanie-31"), поэтому маппим по
+// ключевым словам, а не по точному совпадению.
+function mapCategoryBySlug(slug: string): number {
+  const s = slug.toLowerCase();
+  if (/(bot|parser|parsing|skript|avtomatiz|api|integrac)/.test(s)) return 41;
+  if (/(mobil|android|ios|flutter|react-native)/.test(s)) return 39;
+  if (/(verstk|html|css|frontend|react|vue)/.test(s)) return 79;
+  if (/(sait|wordpress|tilda|bitrix|cmc|landing|web)/.test(s)) return 37;
+  if (/(programmirovanie|razrabotk|backend|node|python|php|1c)/.test(s)) return 38;
+  return 0; // не целевая
+}
 
 function extractIdFromUrl(url: string): string | null {
-  const match = url.match(/\/(\d+)\//);
-  return match ? match[1] : null;
+  // последнее число перед закрывающим слэшем = ID проекта
+  // /freelance/<cat-slug>-<catId>/<proj-slug>-<projId>/
+  const matches = url.match(/\/(\d+)\//g);
+  if (matches && matches.length > 0) {
+    const last = matches[matches.length - 1];
+    return last.replace(/\D/g, "");
+  }
+  return null;
 }
 
 function extractCategoryFromUrl(url: string): string | null {
-  const match = url.match(/\/freelance\/([^/]+)\/\d+\//);
+  const match = url.match(/\/freelance\/([^/]+)\//);
   return match ? match[1] : null;
 }
 
@@ -43,14 +52,6 @@ function cleanText(text: string): string {
     .slice(0, 2000);
 }
 
-function mapCategory(slug: string): number {
-  return TARGET_CATEGORIES[slug] || 0;
-}
-
-function isRelevantCategory(slug: string): boolean {
-  return slug in TARGET_CATEGORIES;
-}
-
 function parseProjectsFromHtml(html: string): ParsedProject[] {
   const projects: ParsedProject[] = [];
   const seen = new Set<string>();
@@ -63,7 +64,9 @@ function parseProjectsFromHtml(html: string): ParsedProject[] {
     const id = extractIdFromUrl(urlPath);
     const categorySlug = extractCategoryFromUrl(urlPath);
 
-    if (!id || !categorySlug || !isRelevantCategory(categorySlug)) continue;
+    if (!id || !categorySlug) continue;
+    const categoryId = mapCategoryBySlug(categorySlug);
+    if (categoryId === 0) continue;
     if (seen.has(id)) continue;
     seen.add(id);
 
@@ -86,7 +89,7 @@ function parseProjectsFromHtml(html: string): ParsedProject[] {
     projects.push({
       platformId: `weblancer_${id}`,
       platform: "weblancer",
-      categoryId: mapCategory(categorySlug),
+      categoryId: mapCategoryBySlug(categorySlug),
       name: title,
       description,
       budget,

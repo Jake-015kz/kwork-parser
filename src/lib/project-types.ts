@@ -1,6 +1,6 @@
 export interface ParsedProject {
   platformId: string;
-  platform: "kwork" | "weblancer" | "telegram" | "flru" | "freelancer";
+  platform: "kwork" | "weblancer" | "telegram" | "freelancer";
   categoryId: number;
   name: string;
   description: string;

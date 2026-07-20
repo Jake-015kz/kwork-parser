@@ -4,7 +4,6 @@ import { requireCronSecret } from "@/lib/auth";
 import type { ParsedProject } from "@/lib/project-types";
 import { fetchAllCategoriesProjects } from "@/lib/parser";
 import { fetchWeblancerProjects } from "@/lib/parser-weblancer";
-import { fetchFlRuProjects } from "@/lib/parser-flru";
 import { fetchFreelancerProjects } from "@/lib/parser-freelancer";
 
 // Для App Router источник истины по длительности — export const maxDuration,
@@ -47,7 +46,6 @@ async function handleCron(req: Request) {
         }))
       ),
       fetchWeblancerProjects(),
-      fetchFlRuProjects(),
       fetchFreelancerProjects(),
     ]);
 
