@@ -138,6 +138,7 @@ export async function fetchFreelancerProjects(): Promise<ParsedProject[]> {
         Accept: "text/html,application/xhtml+xml",
         "Accept-Language": "en-US,en;q=0.9",
       },
+      redirect: "follow",
       next: { revalidate: 300 },
     });
 
@@ -150,6 +151,6 @@ export async function fetchFreelancerProjects(): Promise<ParsedProject[]> {
     return parseProjectsFromHtml(html);
   } catch (err) {
     console.error("Freelancer fetch error:", err);
-    return [];
+    throw err;
   }
 }
