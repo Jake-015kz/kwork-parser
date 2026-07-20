@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { projects } from "@/db/schema";
 import { analyzeOneProject } from "./analyzeOne";
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 import type { ParsedProject } from "./project-types";
 
 const ANALYSIS_DELAY_MS = 2000;
@@ -61,11 +61,22 @@ export async function insertProjects(
         await analyzeOneProject(inserted);
         analyzedCount++;
       } catch (err) {
-        errors.push(`Analysis error for ${p.platformId}: ${err}`);
-        await db
-          .update(projects)
-          .set({ status: "error", updatedAt: new Date() })
-          .where(inArray(projects.id, [inserted.id]));
+        // analyzeOneProject ставит skipped/blacklisted при ожидаемом
+        // пропуске (мин. бюджет, чёрный список, excluded keyword) и бросает
+        // Error. Не перезаписываем этот статус на "error" — иначе
+        // статистика ломается, а проект выглядит упавшим. "error" только
+        // если анализ реально упал (статус остался new).
+        const [cur] = await db
+          .select({ status: projects.status })
+          .from(projects)
+          .where(eq(projects.id, inserted.id));
+        if (cur && cur.status === "new") {
+          errors.push(`Analysis error for ${p.platformId}: ${err}`);
+          await db
+            .update(projects)
+            .set({ status: "error", updatedAt: new Date() })
+            .where(eq(projects.id, inserted.id));
+        }
       }
 
       await new Promise((r) => setTimeout(r, ANALYSIS_DELAY_MS));

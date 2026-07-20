@@ -84,9 +84,11 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
       backlogCount++;
       analyzedCount++;
     } catch (err) {
-      errors.push(`Backlog analysis error for project ${p.id}: ${err}`);
+      // analyzeOneProject ставит skipped/blacklisted при ожидаемом пропуске
+      // и бросает Error — не перезаписываем на "error" в этом случае.
       const [cur] = await db.select({ status: projects.status }).from(projects).where(eq(projects.id, p.id));
-      if (cur) {
+      if (cur && cur.status !== "skipped" && cur.status !== "blacklisted") {
+        errors.push(`Backlog analysis error for project ${p.id}: ${err}`);
         await db.update(projects).set({ status: "error", updatedAt: new Date() }).where(eq(projects.id, p.id));
       }
     }
