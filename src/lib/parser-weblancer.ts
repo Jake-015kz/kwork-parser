@@ -56,7 +56,7 @@ function parseProjectsFromHtml(html: string): ParsedProject[] {
   const projects: ParsedProject[] = [];
   const seen = new Set<string>();
 
-  const projectRegex = /href="(\/freelance\/[^"]*\/\d+\/)"/gi;
+  const projectRegex = /href="(\/freelance\/[a-z0-9-]+-\d+\/[a-z0-9-]+-\d+\/)"/gi;
   let match: RegExpExecArray | null;
 
   while ((match = projectRegex.exec(html)) !== null) {
