@@ -22,12 +22,19 @@ export interface ProjectRow {
   url: string | null;
 }
 
+// Дефолтный мин. бюджет: отсекает мусорные заказы за копейки и экономит
+// лимит Groq. Переопределяется через Settings (0 = выключить фильтр).
+const DEFAULT_MIN_BUDGET = 3000;
+
 async function getMinBudget(): Promise<number | null> {
   const [s] = await db.select().from(settings)
     .where(eq(settings.key, "min_budget")).limit(1);
-  if (!s) return null;
+  if (!s) return DEFAULT_MIN_BUDGET;
   const v = s.value as unknown as string;
-  return v ? parseFloat(v) || null : null;
+  const parsed = v ? parseFloat(v) : NaN;
+  if (isNaN(parsed)) return DEFAULT_MIN_BUDGET;
+  // 0 или отрицательное значение = фильтр выключен
+  return parsed > 0 ? parsed : null;
 }
 
 function checkExcludedKeywords(name: string, description: string): string | null {

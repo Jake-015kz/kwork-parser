@@ -150,14 +150,14 @@ export default function SettingsTab() {
       <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
         <h2 className="text-lg font-semibold mb-3">💰 Фильтр бюджета</h2>
         <p className="text-sm text-[var(--muted)] mb-2">
-          Проекты с бюджетом ниже указанной суммы будут автоматически пропускаться.
+          Проекты с бюджетом ниже указанной суммы автоматически пропускаются. По умолчанию — 3000 ₽. Оставьте 0, чтобы отключить фильтр.
         </p>
         <div className="flex items-center gap-2">
           <input
             type="number"
             value={minBudget}
             onChange={(e) => setMinBudget(e.target.value)}
-            placeholder="0"
+            placeholder="3000"
             className="w-28 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm focus:outline-none focus:border-[var(--accent)]"
           />
           <span className="text-sm text-[var(--muted)]">₽</span>
