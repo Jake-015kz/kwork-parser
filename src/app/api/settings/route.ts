@@ -28,7 +28,11 @@ export async function GET() {
     getSetting("min_budget"),
   ]);
 
-  return NextResponse.json({ chatId, minBudget });
+  return NextResponse.json({
+    chatId,
+    minBudget,
+    model: process.env.AI_MODEL || "qwen/qwen3-32b",
+  });
 }
 
 export async function POST(req: NextRequest) {

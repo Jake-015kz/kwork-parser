@@ -24,6 +24,7 @@ const PARSE_CATEGORIES = [
 export default function SettingsTab() {
   const [chatId, setChatId] = useState("");
   const [minBudget, setMinBudget] = useState("");
+  const [model, setModel] = useState("");
   const [saved, setSaved] = useState(false);
   const [blItems, setBlItems] = useState<BlacklistItem[]>([]);
   const [newUserName, setNewUserName] = useState("");
@@ -46,6 +47,7 @@ export default function SettingsTab() {
         const blacklist = await blacklistRes.json();
         if (settings.chatId) setChatId(settings.chatId);
         if (settings.minBudget) setMinBudget(settings.minBudget);
+        if (settings.model) setModel(settings.model);
         setBlItems(blacklist.items || []);
       } catch {}
     };
@@ -240,12 +242,12 @@ export default function SettingsTab() {
         <h2 className="text-lg font-semibold mb-3">Интеграции</h2>
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
-            <span>OpenRouter API</span>
+            <span>Groq API</span>
             <span className="text-[var(--accent)]">✅ Подключен</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Модель</span>
-            <span className="text-[var(--muted)]">deepseek-chat-v3-0324:free</span>
+            <span className="text-[var(--muted)]">{model || "qwen/qwen3-32b"}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Telegram Bot</span>
