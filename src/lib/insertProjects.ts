@@ -31,10 +31,10 @@ export async function insertProjects(
   for (const p of parsed) {
     if (existingSet.has(p.platformId)) continue;
 
-    let priceValue: number | null = null;
+    let priceValue: string | null = null;
     if (p.budget) {
       const n = parseFloat(String(p.budget).replace(/[^\d.]/g, ""));
-      if (!isNaN(n)) priceValue = n;
+      if (!isNaN(n)) priceValue = String(n);
     }
 
     try {
