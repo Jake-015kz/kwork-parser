@@ -143,8 +143,7 @@ export async function fetchFreelancerProjects(): Promise<ParsedProject[]> {
     });
 
     if (!res.ok) {
-      console.error(`Freelancer fetch failed: ${res.status}`);
-      return [];
+      throw new Error(`Freelancer HTTP ${res.status}`);
     }
 
     const html = await res.text();

@@ -122,8 +122,7 @@ export async function fetchWeblancerProjects(): Promise<ParsedProject[]> {
     });
 
     if (!res.ok) {
-      console.error(`Weblancer fetch failed: ${res.status}`);
-      return [];
+      throw new Error(`Weblancer HTTP ${res.status}`);
     }
 
     html = await res.text();
