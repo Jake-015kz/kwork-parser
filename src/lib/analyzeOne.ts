@@ -73,6 +73,15 @@ export async function analyzeOneProject(
     }
   }
 
+  if (project.categoryId === 0) {
+    // FL.ru / Freelancer: categoryId=0 значит не попал в целевые категории
+    // (сайты/боты/парсеры/верстка). Пропускаем без анализа.
+    await db.update(projects)
+      .set({ status: "skipped", skipReason: "Категория не в целевых (FL.ru/Freelancer)", updatedAt: new Date() })
+      .where(eq(projects.id, project.id));
+    throw new Error(`Category not in targets (platform=${project.platform})`);
+  }
+
   if (EXCLUDED_CATEGORY_IDS.has(project.categoryId)) {
     await db.update(projects)
       .set({ status: "skipped", skipReason: `Категория не подходит (ID: ${project.categoryId})`, updatedAt: new Date() })

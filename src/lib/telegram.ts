@@ -7,6 +7,16 @@ import { buildProjectUrl } from "./utils";
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN;
 const SITE_URL = process.env.SITE_URL || process.env.site_url || "http://localhost:3000";
 
+function platformLabel(platform?: string): string {
+  switch (platform) {
+    case "kwork": return "Kwork";
+    case "weblancer": return "Weblancer";
+    case "flru": return "FL.ru";
+    case "freelancer": return "Freelancer";
+    default: return "сайте";
+  }
+}
+
 export const bot = TOKEN ? new Bot(TOKEN) : null;
 
 if (bot) {
@@ -182,7 +192,7 @@ export async function sendProjectNotification(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: `👁 На Kwork`, url: projectUrl },
+            { text: `👁 Открыть на ${platformLabel(platform)}`, url: projectUrl },
             { text: "📊 Детали", url: `${SITE_URL}/projects/${projectId}` },
           ],
           [

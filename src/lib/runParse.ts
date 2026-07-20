@@ -2,6 +2,8 @@ import { db } from "./db";
 import { projects, syncLogs } from "@/db/schema";
 import { fetchAllCategoriesProjects, type KworkProject } from "./parser";
 import { fetchWeblancerProjects } from "./parser-weblancer";
+import { fetchFlRuProjects } from "./parser-flru";
+import { fetchFreelancerProjects } from "./parser-freelancer";
 import { analyzeOneProject } from "./analyzeOne";
 import { eq, inArray } from "drizzle-orm";
 import { insertProjects } from "./insertProjects";
@@ -62,9 +64,25 @@ export async function runParseAndAnalyze(maxPages: number = 10): Promise<ParseRe
     errors.push(`Weblancer fetch error: ${err}`);
   }
 
+  let flruProjects: ParsedProject[] = [];
+  try {
+    flruProjects = await fetchFlRuProjects();
+  } catch (err) {
+    errors.push(`FL.ru fetch error: ${err}`);
+  }
+
+  let freelancerProjects: ParsedProject[] = [];
+  try {
+    freelancerProjects = await fetchFreelancerProjects();
+  } catch (err) {
+    errors.push(`Freelancer fetch error: ${err}`);
+  }
+
   const allParsed: ParsedProject[] = [
     ...kworkProjects.map(kworkToParsed),
     ...weblancerProjects,
+    ...flruProjects,
+    ...freelancerProjects,
   ];
 
   const result = await insertProjects(allParsed);

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { insertProjects } from "@/lib/insertProjects";
 import { requireCronSecret } from "@/lib/auth";
 import type { ParsedProject } from "@/lib/project-types";
+import { fetchAllCategoriesProjects } from "@/lib/parser";
+import { fetchWeblancerProjects } from "@/lib/parser-weblancer";
+import { fetchFlRuProjects } from "@/lib/parser-flru";
+import { fetchFreelancerProjects } from "@/lib/parser-freelancer";
 
 // Для App Router источник истины по длительности — export const maxDuration,
 // vercel.json functions.maxDuration на отдельные роуты не всегда применяется.
@@ -20,9 +24,6 @@ async function handleCron(req: Request) {
   if (authError) return authError;
 
   try {
-    const { fetchAllCategoriesProjects } = await import("@/lib/parser");
-    const { fetchWeblancerProjects } = await import("@/lib/parser-weblancer");
-
     const allParsed: ParsedProject[] = [];
 
     const results = await Promise.allSettled([
@@ -46,6 +47,8 @@ async function handleCron(req: Request) {
         }))
       ),
       fetchWeblancerProjects(),
+      fetchFlRuProjects(),
+      fetchFreelancerProjects(),
     ]);
 
     for (const r of results) {
