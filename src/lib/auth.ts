@@ -32,12 +32,6 @@ function cronSecretFromRequest(req: Request): string | undefined {
   }
 }
 
-// Vercel Cron при авто-вызове ставит этот заголовок. Проверяем его,
-// чтобы нативный cron в vercel.json запускался без захардкоженного секрета.
-function isVercelCron(req: Request): boolean {
-  return req.headers.get("x-vercel-cron") === "1";
-}
-
 function adminTokenFromRequest(req: Request): string | undefined {
   const auth = req.headers.get("authorization") || "";
   if (auth.toLowerCase().startsWith("bearer ")) {
@@ -47,9 +41,6 @@ function adminTokenFromRequest(req: Request): string | undefined {
 }
 
 export function requireCronSecret(req: Request): NextResponse | null {
-  // Нативный Vercel Cron: пропускаем без секрета (заголовок ставит сам Vercel).
-  if (isVercelCron(req)) return null;
-
   const expected = getCronSecret();
   if (!expected) return null; // не настроено → открыто (dev)
   const provided = cronSecretFromRequest(req);
